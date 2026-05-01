@@ -1,0 +1,31 @@
+.git
+.github
+node_modules
+.next
+.next/cache
+out
+build
+dist
+.turbo
+coverage
+*.log
+.env
+.env.*
+!.env.example
+
+# Local SQLite + tsc artefacts
+prisma/*.db
+prisma/*.db-journal
+*.tsbuildinfo
+test.db
+build.db
+dev.db
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+
+# Docs the runtime image doesn't need
+README.md
+TechSpec.md

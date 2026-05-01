@@ -122,6 +122,83 @@ pnpm db:reset     # wipe + reseed
   rejection, admin bypass, version conflict (TechSpec §18.2's required
   scenarios for the ticket flow), and activity-log emission.
 
+## Deployment
+
+The repo ships with a GitHub Actions release pipeline that publishes a
+production-ready container image to **GitHub Container Registry (GHCR)** —
+zero secrets to configure, the built-in `GITHUB_TOKEN` is enough.
+
+### Pipeline
+
+| Workflow | File | Trigger | Result |
+| --- | --- | --- | --- |
+| CI | `.github/workflows/ci.yml` | every PR + push to `main` | lint, typecheck, vitest, `pnpm build`, **Docker build + container smoke test** (no push) |
+| Release | `.github/workflows/release.yml` | push to `main`, semver tag `v*.*.*`, manual dispatch | runs the test gate, then builds a multi-arch (`linux/amd64`,`linux/arm64`) image and pushes to `ghcr.io/<owner>/flow-board` with provenance + SBOM. Tags create a GitHub Release with auto-generated notes. |
+
+Image tags follow TechSpec §23.6:
+
+- `main` and `main-<sha7>` for every commit on `main`
+- `latest` for the default branch and for any semver tag
+- `v1.4.2`, `1.4.2`, `1.4`, `1` for tag pushes (major-only suppressed for `v0.x`)
+- `manual-<run_id>` for `workflow_dispatch`
+
+### Run anywhere `docker run` runs
+
+```bash
+docker run -d \
+  --name flowboard \
+  -p 3000:3000 \
+  -v flowboard-data:/data \
+  -e JWT_SECRET="$(openssl rand -hex 32)" \
+  ghcr.io/wankhede04/flow-board:latest
+```
+
+Or with the supplied compose file:
+
+```bash
+docker compose up -d
+```
+
+The image:
+
+- runs as a non-root `nextjs` user (uid 1001)
+- listens on `:3000` and exposes `/api/healthz`, `/api/readyz`
+- persists data at `/data/flowboard.db` (SQLite); mount a volume there
+- runs `prisma db push` on every boot — idempotent and forward-compatible
+  per TechSpec §23.8
+- has a Docker `HEALTHCHECK` that hits `/api/healthz`
+
+### Required environment
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Defaults to `file:/data/flowboard.db`. Switch to a Postgres URL and update `provider` in `prisma/schema.prisma` for multi-replica deploys. |
+| `JWT_SECRET` | Required in production. Use `openssl rand -hex 32`. |
+
+### Cutting a release
+
+```bash
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+The Release workflow then:
+
+1. Runs the test gate (lint, typecheck, vitest)
+2. Builds and signs a multi-arch image, pushes to GHCR with SBOM + provenance attestation
+3. Creates a GitHub Release with auto-generated changelog
+
+### Migrating to TechSpec §23 (ECR + EKS)
+
+The Release workflow is a near-drop-in for the spec's `_build-and-push.yml`.
+To switch from GHCR to ECR + EKS:
+
+1. Add an OIDC role + secrets per TechSpec §23.4
+2. Replace the `docker/login-action` step with `aws-actions/configure-aws-credentials` + `amazon-ecr-login`
+3. Add a `migrate` job that runs `helm upgrade --install flowboard-migrate ...` between the publish and deploy steps (§23.7)
+
+The `Dockerfile` and `docker-compose.yml` are infra-agnostic and unchanged.
+
 ## API examples
 
 ```bash
