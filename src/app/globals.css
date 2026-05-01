@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply bg-bg-base text-text-primary antialiased;
+  }
+
+  body {
+    font-family: theme('fontFamily.sans');
+    color-scheme: dark;
+  }
+
+  ::selection {
+    background-color: rgba(99, 102, 241, 0.4);
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg-base;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-accent text-white hover:bg-accent-hover;
+  }
+  .btn-ghost {
+    @apply text-text-secondary hover:bg-bg-raised hover:text-text-primary;
+  }
+  .btn-secondary {
+    @apply bg-bg-raised text-text-primary hover:bg-bg-border;
+  }
+  .input {
+    @apply w-full rounded-md border border-bg-border bg-bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-text-muted;
+  }
+  .card {
+    @apply rounded-md border border-bg-border bg-bg-raised p-3 shadow-card;
+  }
+  .priority-pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .label-pill {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+}

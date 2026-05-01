@@ -1,0 +1,248 @@
+// FlowBoard Prisma schema.
+//
+// Mirrors the TechSpec §5.2 Postgres DDL. We use SQLite locally for zero-setup
+// development; Postgres-only types (tsvector, JSONB, BYTEA, TIMESTAMPTZ) are
+// represented with portable equivalents (String/Json/Bytes/DateTime).
+// To switch to Postgres for production, change `provider = "postgresql"` and
+// the schema is otherwise compatible.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --- Tenants & users ----------------------------------------------------
+
+model Workspace {
+  id          String   @id // wsp_<ulid>
+  name        String
+  slug        String   @unique
+  slackTeamId String?  @unique
+  plan        String   @default("free") // free|pro|business|enterprise
+  settings    String   @default("{}") // JSON-encoded
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  WorkspaceMember[]
+  projects Project[]
+  tickets  Ticket[]
+}
+
+model User {
+  id        String   @id // usr_<ulid>
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces        WorkspaceMember[]
+  projectMembers    ProjectMember[]
+  reportedTickets   Ticket[]          @relation("ReportedTickets")
+  ticketAssignees   TicketAssignee[]
+  ticketWatchers    TicketWatcher[]
+  comments          Comment[]
+  activityEvents    ActivityEvent[]
+  attachments       Attachment[]
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        String   @default("member") // admin|member|viewer|guest
+  slackUserId String?
+  joinedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@index([workspaceId, slackUserId])
+}
+
+// --- Projects -----------------------------------------------------------
+
+model Project {
+  id           String   @id // prj_<ulid>
+  workspaceId  String
+  key          String // e.g. 'FB' for ticket prefix
+  name         String
+  description  String?
+  estimateUnit String   @default("points") // points|hours
+  ticketSeq    Int      @default(0)
+  archivedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   ProjectMember[]
+  columns   WorkflowColumn[]
+  tickets   Ticket[]
+  labels    Label[]
+
+  @@unique([workspaceId, key])
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  role      String   @default("member") // admin|member|viewer
+  addedAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+model WorkflowColumn {
+  id        String   @id // col_<ulid>
+  projectId String
+  name      String
+  position  Int
+  category  String // todo|in_progress|done
+  wipLimit  Int? // null = unlimited
+  createdAt DateTime @default(now())
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tickets Ticket[] @relation("TicketStatus")
+
+  @@unique([projectId, position])
+}
+
+// --- Tickets ------------------------------------------------------------
+
+model Ticket {
+  id             String   @id // tkt_<ulid>
+  workspaceId    String
+  projectId      String
+  number         Int
+  title          String
+  description    String? // Markdown
+  statusColumnId String
+  priority       String   @default("medium") // lowest|low|medium|high|urgent
+  reporterId     String
+  dueDate        DateTime?
+  startDate      DateTime?
+  estimate       Float?
+  epicId         String?
+  rank           String // fractional index for board ordering
+  archivedAt     DateTime?
+  version        Int      @default(1) // optimistic locking
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  statusColumn   WorkflowColumn   @relation("TicketStatus", fields: [statusColumnId], references: [id])
+  reporter       User             @relation("ReportedTickets", fields: [reporterId], references: [id])
+  epic           Ticket?          @relation("TicketEpic", fields: [epicId], references: [id])
+  children       Ticket[]         @relation("TicketEpic")
+  assignees      TicketAssignee[]
+  watchers       TicketWatcher[]
+  labels         TicketLabel[]
+  comments       Comment[]
+  activityEvents ActivityEvent[]
+  attachments    Attachment[]
+
+  @@unique([projectId, number])
+  @@index([projectId, statusColumnId])
+  @@index([workspaceId])
+  @@index([dueDate])
+}
+
+model TicketAssignee {
+  ticketId String
+  userId   String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, userId])
+}
+
+model TicketWatcher {
+  ticketId String
+  userId   String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, userId])
+}
+
+model Label {
+  id        String  @id // lbl_<ulid>
+  projectId String
+  name      String
+  color     String // hex
+
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tickets TicketLabel[]
+
+  @@unique([projectId, name])
+}
+
+model TicketLabel {
+  ticketId String
+  labelId  String
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  label  Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, labelId])
+}
+
+// --- Comments & activity -----------------------------------------------
+
+model Comment {
+  id             String    @id // cmt_<ulid>
+  ticketId       String
+  parentId       String?
+  authorId       String
+  body           String
+  slackMessageTs String?
+  editedAt       DateTime?
+  createdAt      DateTime  @default(now())
+
+  ticket  Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+  author  User      @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+model ActivityEvent {
+  id        String   @id
+  ticketId  String
+  actorId   String? // null = system
+  eventType String
+  payload   String // JSON-encoded
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor  User?  @relation(fields: [actorId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+model Attachment {
+  id          String   @id
+  ticketId    String
+  uploaderId  String
+  filename    String
+  contentType String
+  sizeBytes   Int
+  s3Key       String
+  createdAt   DateTime @default(now())
+
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploader User   @relation(fields: [uploaderId], references: [id])
+}
