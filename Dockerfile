@@ -12,8 +12,11 @@ ARG PRISMA_VERSION=5.22.0
 # ---- 1. deps: install with frozen lockfile ----
 FROM node:${NODE_VERSION}-bookworm-slim AS deps
 ARG PNPM_VERSION
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /app
+
+# Install pnpm directly via npm — corepack in older Node images rejects
+# recent pnpm signatures, which fails the build instantly.
+RUN npm install -g --no-audit --no-fund pnpm@${PNPM_VERSION}
 
 # OpenSSL is required by Prisma engines on Debian slim.
 RUN apt-get update \
