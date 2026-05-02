@@ -1,0 +1,29 @@
+# Self-hosted runtime for the GHCR image.
+# Usage:
+#   docker compose pull && docker compose up -d
+#
+# Override the image tag with `FLOWBOARD_IMAGE` (default: latest from main).
+# DB persists in the named volume `flowboard-data` as /data/flowboard.db.
+# `prisma db push` runs on every boot (idempotent) so pulling a newer image
+# automatically applies any schema changes.
+
+services:
+  flowboard:
+    image: ${FLOWBOARD_IMAGE:-ghcr.io/wankhede04/flow-board:latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: file:/data/flowboard.db
+      JWT_SECRET: ${JWT_SECRET:-please-change-me}
+    ports:
+      - "${FLOWBOARD_PORT:-3000}:3000"
+    volumes:
+      - flowboard-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  flowboard-data:
