@@ -1,0 +1,71 @@
+import { z } from 'zod';
+import { fail, ok, parseJson } from '@/lib/api';
+import { ApiError, ErrorCodes } from '@/lib/errors';
+import {
+  finalizeApplication,
+  getApplication,
+  getProfile,
+  updateApplicationTailored,
+} from '@/lib/resume/store';
+import { EditableSchema } from '@/lib/resume/schema';
+import { computeDiff, summarizeDiff } from '@/lib/resume/diff';
+
+export const dynamic = 'force-dynamic';
+
+const PatchBody = z.object({
+  tailored: EditableSchema,
+  finalize: z.boolean().optional().default(false),
+});
+
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    const app = await getApplication(params.id);
+    if (!app) throw new ApiError(ErrorCodes.NOT_FOUND, 'Application not found');
+    const profile = await getProfile(app.profileId);
+    if (!profile) throw new ApiError(ErrorCodes.NOT_FOUND, 'Profile for application not found');
+    return ok({
+      application: app,
+      profile: { id: profile.id, slug: profile.slug, locked: profile.locked },
+      diff: computeDiff(app.original, app.tailored),
+    });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+function pdfFilenameFor(slug: string, company: string, date: Date): string {
+  const safeCompany = company
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+  const datePart = date.toISOString().slice(0, 10);
+  return `${slug}_${safeCompany || 'company'}_${datePart}.pdf`;
+}
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const body = await parseJson(req, PatchBody);
+    const app = await getApplication(params.id);
+    if (!app) throw new ApiError(ErrorCodes.NOT_FOUND, 'Application not found');
+    if (app.status === 'finalized') {
+      throw new ApiError(ErrorCodes.VALIDATION_FAILED, 'Application is already finalized');
+    }
+
+    const diff = computeDiff(app.original, body.tailored);
+    const snapshot = { diff, summary: summarizeDiff(diff) };
+    let updated = await updateApplicationTailored(params.id, body.tailored, snapshot);
+    if (!updated) throw new ApiError(ErrorCodes.NOT_FOUND, 'Application not found after update');
+
+    if (body.finalize) {
+      const profile = await getProfile(app.profileId);
+      if (!profile) throw new ApiError(ErrorCodes.NOT_FOUND, 'Profile for application not found');
+      const filename = pdfFilenameFor(profile.slug, app.company, new Date());
+      updated = await finalizeApplication(params.id, filename);
+    }
+
+    return ok({ application: updated });
+  } catch (err) {
+    return fail(err);
+  }
+}

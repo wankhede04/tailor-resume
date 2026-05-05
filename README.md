@@ -1,4 +1,117 @@
-# FlowBoard
+# Resume Tailor & FlowBoard
+
+This repository now hosts two apps that share the same Next.js + Prisma
+infrastructure:
+
+1. **Resume Tailor** *(primary, at `/`)* — AI-powered resume tailoring system
+   per the [Plan of Action](#resume-tailor). Pick a candidate profile, paste
+   a job description, let Claude rewrite the editable sections, review every
+   change in a Git-style diff, manually override what you want, and export a
+   `profile-name_company_date.pdf` — every application logged with its diff
+   snapshot.
+2. **FlowBoard** *(at `/workspace`)* — the original Kanban tracker described
+   in [`TechSpec.md`](./TechSpec.md). Unchanged.
+
+---
+
+## Resume Tailor
+
+AI Resume Tailor & Job Apply System. Implements all six core features from
+the Plan of Action:
+
+| Feature | Where it lives |
+| --- | --- |
+| JSON Profile Store (locked vs editable) | `src/lib/resume/schema.ts`, `prisma/schema.prisma` (`ResumeProfile`) |
+| JD-Driven Tailoring | `src/lib/resume/claude.ts`, `POST /api/v1/resume/applications` |
+| PDF Export | `src/lib/resume/pdfDocument.tsx`, `GET /api/v1/resume/applications/{id}/pdf` |
+| Git-Diff Change Review | `src/lib/resume/diff.ts`, `src/components/resume/ReviewClient.tsx` |
+| Inline Manual Edit | `ReviewClient` per-line `keep AI / revert / edit` controls |
+| Application Tracker | `src/app/applications/page.tsx`, `prisma/schema.prisma` (`ResumeApplication`) |
+
+### Quick start (Resume Tailor)
+
+```bash
+pnpm install
+cp .env.example .env
+# Required for tailoring — get a key at https://console.anthropic.com/
+echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> .env
+pnpm db:push
+pnpm db:seed     # creates 3 sample profiles: anurag-fullstack, shreya-backend, shivani-frontend
+pnpm dev         # http://localhost:3000
+```
+
+End-to-end flow:
+
+1. Open `/` — see the seeded profiles.
+2. Click a profile, then **Tailor for a job**.
+3. Paste a JD, hit **Tailor with AI**. Claude (Sonnet by default) rewrites the
+   editable sections; the locked section (name, contact, education, job
+   titles, companies, dates) is sent as read-only context and validated
+   on the way back.
+4. The diff review screen shows every changed line in red/green with
+   word-level highlights. Per-line: **keep AI**, **revert**, or **edit**.
+   Bulk: **Accept all** / **Reject all**.
+5. Click **Finalize & download PDF** — the file is saved with name
+   `slug_company_yyyy-mm-dd.pdf` and the application is logged at
+   `/applications`.
+
+### Resume JSON schema
+
+Each profile has two top-level buckets (Plan §5):
+
+```jsonc
+{
+  "profileId": "vijay-backend",
+  "locked": {
+    "name": "Vijay Wankhede",
+    "contact": { "email": "...", "phone": "...", "location": "...", "linkedin": "...", "github": "...", "website": "..." },
+    "education": [{ "institution": "...", "degree": "...", "field": "...", "startYear": "...", "endYear": "...", "gpa": "..." }],
+    // Job titles/companies/dates are facts. Only these IDs link bullets to roles.
+    "experienceFacts": [{ "id": "exp-acme", "title": "...", "company": "...", "location": "...", "startDate": "...", "endDate": "..." }]
+  },
+  "editable": {
+    "summary": "...",
+    "skills": ["..."],
+    // Same ids as locked.experienceFacts. Bullets are tailorable, role facts are not.
+    "experience": [{ "id": "exp-acme", "bullets": ["..."] }],
+    "projects": [{ "id": "proj-x", "name": "...", "description": "...", "bullets": ["..."], "techStack": ["..."] }]
+  }
+}
+```
+
+The Anthropic call uses tool use to enforce structured JSON output, plus a
+post-validation step that rejects any response whose experience IDs don't
+match the input.
+
+### Configuration
+
+| Env var | Purpose |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Required for `/api/v1/resume/applications` POST. |
+| `CLAUDE_MODEL` | Override the model. Default: `claude-sonnet-4-6`. |
+| `DATABASE_URL` | SQLite by default (`file:./dev.db`). Postgres works too — see deviations table below. |
+
+### REST API (Resume Tailor)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/resume/profiles` | List all profiles |
+| POST | `/api/v1/resume/profiles` | Create profile |
+| GET | `/api/v1/resume/profiles/{id}` | Get profile |
+| PATCH | `/api/v1/resume/profiles/{id}` | Update profile (display name, locked, editable) |
+| DELETE | `/api/v1/resume/profiles/{id}` | Delete profile and its applications |
+| GET | `/api/v1/resume/applications` | List applications |
+| POST | `/api/v1/resume/applications` | Tailor a profile against a JD (calls Claude) |
+| GET | `/api/v1/resume/applications/{id}` | Get application + diff |
+| PATCH | `/api/v1/resume/applications/{id}` | Save manual edits to tailored output; optionally `finalize: true` |
+| GET | `/api/v1/resume/applications/{id}/pdf` | Render PDF (uses current tailored state) |
+
+Errors use the shared `{ error: { code, message, details }, request_id }`
+envelope from the FlowBoard build (`src/lib/api.ts`).
+
+---
+
+## FlowBoard
 
 A working implementation of the FlowBoard Kanban tracker described in
 [`TechSpec.md`](./TechSpec.md). This build delivers Phases 1–4 of the spec —

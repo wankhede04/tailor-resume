@@ -3,8 +3,8 @@ import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 
 export const metadata: Metadata = {
-  title: 'FlowBoard',
-  description: 'Slack-native Kanban task tracker',
+  title: 'Resume Tailor',
+  description: 'AI Resume Tailor & Job Apply System',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

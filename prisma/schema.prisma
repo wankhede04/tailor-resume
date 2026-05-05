@@ -246,3 +246,46 @@ model Attachment {
   ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   uploader User   @relation(fields: [uploaderId], references: [id])
 }
+
+// --- Resume Tailor models ----------------------------------------------
+// Independent feature: stores canonical resume JSON profiles and the log
+// of tailored applications. See src/lib/resume/schema.ts for the JSON
+// shape. JSON columns are stored as serialized strings (SQLite has no
+// native JSON type).
+
+model ResumeProfile {
+  id           String   @id // rpf_<ulid>
+  slug         String   @unique // e.g. 'vijay-backend'
+  displayName  String
+  lockedJson   String // JSON-encoded LockedResume
+  editableJson String // JSON-encoded EditableResume
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  applications ResumeApplication[]
+}
+
+model ResumeApplication {
+  id              String   @id // rap_<ulid>
+  profileId       String
+  jobTitle        String
+  company         String
+  jobDescription  String // pasted JD text
+  // Snapshot of the editable section at the time of tailoring (the baseline).
+  originalJson    String // JSON-encoded EditableResume
+  // AI-tailored editable section, possibly with per-field manual overrides.
+  tailoredJson    String // JSON-encoded EditableResume
+  // Per-field accept/reject decisions and computed diffs at the time of
+  // finalization. Stored as serialized JSON.
+  diffSnapshot    String   @default("{}")
+  status          String   @default("draft") // draft|finalized
+  pdfFilename     String? // e.g. 'vijay-backend_acme_2026-05-05.pdf'
+  finalizedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  profile ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@index([status])
+}

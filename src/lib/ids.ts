@@ -14,7 +14,9 @@ export type IdPrefix =
   | 'cmt'
   | 'evt'
   | 'att'
-  | 'scl'; // slack channel link
+  | 'scl' // slack channel link
+  | 'rpf' // resume profile
+  | 'rap'; // resume application
 
 export function newId(prefix: IdPrefix): string {
   return `${prefix}_${ulid()}`;
