@@ -39,8 +39,8 @@ export default async function ApplicationReviewPage({
             </h1>
             <p className="mt-1 text-sm text-text-secondary">
               Reviewing tailored resume for{' '}
-              <span className="text-text-primary">{profile.displayName}</span>. Accept lines you
-              like, reject (revert) the ones you don&rsquo;t, or override any line inline.
+              <span className="text-text-primary">{profile.displayName}</span>. Click any text to
+              edit it directly, or use Accept / Reject all changes in the toolbar.
             </p>
           </div>
           <span
