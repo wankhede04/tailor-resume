@@ -18,16 +18,24 @@ type FieldValues = Map<string, string>;
 
 const expBulletsKey = (id: string) => `experience[${id}].bullets`;
 const projBulletsKey = (id: string) => `projects[${id}].bullets`;
+const SKILLS_KEY = 'skills';
 
-function splitBullets(combined: string): string[] {
+function splitLines(combined: string): string[] {
   return combined.split('\n').map((s) => s.trim()).filter(Boolean);
+}
+
+// Parse "Category: item1, item2" → { category, items } for display
+function parseSkillLine(line: string): { category: string | null; items: string } {
+  const idx = line.indexOf(':');
+  if (idx === -1) return { category: null, items: line.trim() };
+  return { category: line.slice(0, idx).trim(), items: line.slice(idx + 1).trim() };
 }
 
 function initValues(diff: ResumeDiff): FieldValues {
   const map = new Map<string, string>();
   const set = (f: FieldDiff) => map.set(f.path, f.after ?? '');
   set(diff.summary);
-  diff.skills.forEach(set);
+  map.set(SKILLS_KEY, diff.skills.map((f) => f.after ?? '').filter(Boolean).join('\n'));
   diff.experience.forEach((e) => {
     const combined = e.bullets.map((f) => f.after ?? '').filter(Boolean).join('\n');
     map.set(expBulletsKey(e.id), combined);
@@ -52,16 +60,16 @@ function buildEditable(
   const afterProjects = new Map(tailored.projects.map((p) => [p.id, p]));
   return {
     summary: get(diff.summary),
-    skills: diff.skills.map(get).filter((s) => s.trim().length > 0),
+    skills: splitLines(values.get(SKILLS_KEY) ?? ''),
     experience: diff.experience.map((e) => ({
       id: e.id,
-      bullets: splitBullets(values.get(expBulletsKey(e.id)) ?? ''),
+      bullets: splitLines(values.get(expBulletsKey(e.id)) ?? ''),
     })),
     projects: diff.projects.map((p): EditableProject => ({
       id: p.id,
       name: get(p.name),
       description: get(p.description),
-      bullets: splitBullets(values.get(projBulletsKey(p.id)) ?? ''),
+      bullets: splitLines(values.get(projBulletsKey(p.id)) ?? ''),
       techStack: afterProjects.get(p.id)?.techStack ?? beforeProjects.get(p.id)?.techStack ?? [],
     })),
   };
@@ -240,7 +248,7 @@ export function ReviewClient({
       const next = new Map(prev);
       const accept = (f: FieldDiff) => next.set(f.path, f.after ?? '');
       accept(diff.summary);
-      diff.skills.forEach(accept);
+      next.set(SKILLS_KEY, diff.skills.map((f) => f.after ?? '').filter(Boolean).join('\n'));
       diff.experience.forEach((e) => {
         next.set(expBulletsKey(e.id), e.bullets.map((f) => f.after ?? '').filter(Boolean).join('\n'));
       });
@@ -257,7 +265,7 @@ export function ReviewClient({
       const next = new Map(prev);
       const reject = (f: FieldDiff) => next.set(f.path, f.before ?? '');
       reject(diff.summary);
-      diff.skills.forEach(reject);
+      next.set(SKILLS_KEY, diff.skills.map((f) => f.before ?? '').filter(Boolean).join('\n'));
       diff.experience.forEach((e) => {
         next.set(expBulletsKey(e.id), e.bullets.map((f) => f.before ?? '').filter(Boolean).join('\n'));
       });
@@ -376,21 +384,40 @@ export function ReviewClient({
 
           {/* Skills */}
           <section>
-            <DocHeading>Skills</DocHeading>
-            <div className="flex flex-wrap gap-2">
-              {diff.skills.map((f) => {
-                const val = values.get(f.path) ?? '';
-                // Don't render a pill for a removed skill that's still empty
-                if (f.kind === 'removed' && val === '') return null;
-                return (
-                  <div
-                    key={f.path}
-                    className="rounded-md border border-bg-border bg-bg-surface px-1.5 py-0.5 text-sm"
-                  >
-                    <EditableInline {...blockProps(f)} />
+            <DocHeading>Skills Summary</DocHeading>
+            <div className="space-y-3">
+              {/* Combined textarea — one category row per line */}
+              <div>
+                <AutoTextarea
+                  value={values.get(SKILLS_KEY) ?? ''}
+                  onChange={(v) => setValue(SKILLS_KEY, v)}
+                  disabled={finalized}
+                  placeholder={'Expertise: NodeJS, TypeScript\nDatabases: PostgreSQL, Redis'}
+                  className={fieldClass}
+                />
+                {diff.skills.some((f) => f.kind !== 'unchanged') && (
+                  <div className="mt-1.5 space-y-0.5 pl-1.5 text-[11px] leading-snug text-text-muted/70">
+                    {diff.skills.filter((f) => f.kind !== 'unchanged').map((f, i) => (
+                      <div key={i}><TrackedInline field={f} /></div>
+                    ))}
                   </div>
-                );
-              })}
+                )}
+              </div>
+
+              {/* Live preview of the categorized format */}
+              {(values.get(SKILLS_KEY) ?? '').trim() && (
+                <div className="rounded-md border border-bg-border bg-bg-surface/50 px-3 py-2.5 text-sm leading-relaxed">
+                  {splitLines(values.get(SKILLS_KEY) ?? '').map((line, i) => {
+                    const { category, items } = parseSkillLine(line);
+                    return (
+                      <p key={i}>
+                        {category && <strong className="text-text-primary">{category}: </strong>}
+                        <span className="text-text-secondary">{items}</span>
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 
