@@ -2,7 +2,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { fail } from '@/lib/api';
 import { ApiError, ErrorCodes } from '@/lib/errors';
 import { getApplication, getProfile } from '@/lib/resume/store';
-import { ResumePdf } from '@/lib/resume/pdfDocument';
+import { resolveTemplate, isValidTemplateId, DEFAULT_TEMPLATE_ID } from '@/lib/resume/templates';
 
 export const dynamic = 'force-dynamic';
 // react-pdf uses Node APIs (fs, stream) — force the Node runtime, not Edge.
@@ -25,12 +25,17 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const profile = await getProfile(app.profileId);
     if (!profile) throw new ApiError(ErrorCodes.NOT_FOUND, 'Profile not found');
 
-    const inline = new URL(req.url).searchParams.get('inline') === 'true';
+    const url = new URL(req.url);
+    const inline = url.searchParams.get('inline') === 'true';
+    const rawTemplate = url.searchParams.get('template');
+    const templateId = isValidTemplateId(rawTemplate) ? rawTemplate : DEFAULT_TEMPLATE_ID;
+    const Template = resolveTemplate(templateId);
+
     const filename =
       app.pdfFilename ?? pdfFilenameFor(profile.slug, app.company, app.finalizedAt ?? new Date());
 
     const buffer = await renderToBuffer(
-      <ResumePdf locked={profile.locked} editable={app.tailored} />,
+      <Template locked={profile.locked} editable={app.tailored} />,
     );
 
     const body = new Uint8Array(buffer);

@@ -1,7 +1,8 @@
 /* eslint-disable react/no-unknown-property */
 import * as React from 'react';
 import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
-import type { EditableResume, LockedResume } from './schema';
+import type { LockedResume } from '../schema';
+import type { ResumePdfProps } from '../pdfDocument';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY   = '#1e3a5f';   // name, section headings
@@ -144,12 +145,7 @@ function Bullet({ children }: { children: React.ReactNode }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export interface ResumePdfProps {
-  locked: LockedResume;
-  editable: EditableResume;
-}
-
-export function ResumePdf({ locked, editable }: ResumePdfProps) {
+export function TemplateA({ locked, editable }: ResumePdfProps) {
   const factsById = new Map(locked.experienceFacts.map((f) => [f.id, f]));
   const contactItems = buildContactItems(locked.contact);
 

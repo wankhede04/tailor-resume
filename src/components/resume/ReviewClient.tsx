@@ -4,6 +4,7 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { EditableProject, EditableResume, LockedResume } from '@/lib/resume/schema';
 import { computeDiff, type FieldDiff, type ResumeDiff } from '@/lib/resume/diff';
+import { TEMPLATE_LIST, DEFAULT_TEMPLATE_ID, type TemplateId } from '@/lib/resume/templates';
 
 interface Props {
   applicationId: string;
@@ -227,6 +228,7 @@ export function ReviewClient({
   const [savedFilename, setSavedFilename] = useState<string | null>(pdfFilename);
   const [finalized, setFinalized] = useState(status === 'finalized');
   const [previewing, setPreviewing] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE_ID);
 
   const factsById = useMemo(
     () => new Map(profile.locked.experienceFacts.map((f) => [f.id, f])),
@@ -305,7 +307,7 @@ export function ReviewClient({
   async function onFinalizeAndDownload() {
     const ok = await persist(true);
     if (ok) {
-      window.open(`/api/v1/resume/applications/${applicationId}/pdf`, '_blank');
+      window.open(`/api/v1/resume/applications/${applicationId}/pdf?template=${selectedTemplate}`, '_blank');
       router.refresh();
     }
   }
@@ -343,6 +345,23 @@ export function ReviewClient({
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-md border border-bg-border bg-bg-raised p-0.5">
+              {TEMPLATE_LIST.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  title={t.description}
+                  onClick={() => setSelectedTemplate(t.id)}
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                    selectedTemplate === t.id
+                      ? 'bg-accent-primary text-white'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
             <button type="button" onClick={acceptAll} className="btn btn-ghost text-xs" disabled={finalized}>
               Accept all
             </button>
@@ -544,7 +563,7 @@ export function ReviewClient({
             </div>
           </div>
           <iframe
-            src={`/api/v1/resume/applications/${applicationId}/pdf?inline=true`}
+            src={`/api/v1/resume/applications/${applicationId}/pdf?inline=true&template=${selectedTemplate}`}
             className="min-h-0 flex-1 w-full"
             title="Resume PDF preview"
           />
