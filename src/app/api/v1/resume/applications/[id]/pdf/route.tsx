@@ -18,13 +18,14 @@ function pdfFilenameFor(slug: string, company: string, date: Date): string {
   return `${slug}_${safeCompany || 'company'}_${datePart}.pdf`;
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
     const app = await getApplication(params.id);
     if (!app) throw new ApiError(ErrorCodes.NOT_FOUND, 'Application not found');
     const profile = await getProfile(app.profileId);
     if (!profile) throw new ApiError(ErrorCodes.NOT_FOUND, 'Profile not found');
 
+    const inline = new URL(req.url).searchParams.get('inline') === 'true';
     const filename =
       app.pdfFilename ?? pdfFilenameFor(profile.slug, app.company, app.finalizedAt ?? new Date());
 
@@ -32,16 +33,14 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       <ResumePdf locked={profile.locked} editable={app.tailored} />,
     );
 
-    // Buffer is a Uint8Array subclass; the Web Response type wants
-    // BodyInit (which accepts Uint8Array) — cast through Uint8Array for
-    // strict TS compatibility.
     const body = new Uint8Array(buffer);
+    const disposition = inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`;
 
     return new Response(body, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Disposition': disposition,
         'Cache-Control': 'no-store',
       },
     });

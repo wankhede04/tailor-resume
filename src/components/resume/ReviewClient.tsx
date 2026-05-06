@@ -226,6 +226,7 @@ export function ReviewClient({
   const [error, setError] = useState<string | null>(null);
   const [savedFilename, setSavedFilename] = useState<string | null>(pdfFilename);
   const [finalized, setFinalized] = useState(status === 'finalized');
+  const [previewing, setPreviewing] = useState(false);
 
   const factsById = useMemo(
     () => new Map(profile.locked.experienceFacts.map((f) => [f.id, f])),
@@ -309,6 +310,12 @@ export function ReviewClient({
     }
   }
 
+  async function onPreview() {
+    // Save current state so the PDF endpoint reflects the latest edits
+    await persist(false);
+    setPreviewing(true);
+  }
+
   const blockProps = (f: FieldDiff): FieldProps => ({
     field: f,
     value: values.get(f.path) ?? '',
@@ -349,6 +356,14 @@ export function ReviewClient({
               disabled={saving || finalized}
             >
               {saving ? 'Saving…' : 'Save draft'}
+            </button>
+            <button
+              type="button"
+              onClick={onPreview}
+              className="btn btn-secondary"
+              disabled={saving}
+            >
+              Preview PDF
             </button>
             <button
               type="button"
@@ -509,6 +524,32 @@ export function ReviewClient({
           )}
         </div>
       </div>
+
+      {/* PDF preview overlay */}
+      {previewing && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-bg-base">
+          <div className="flex shrink-0 items-center justify-between border-b border-bg-border bg-bg-raised px-6 py-3">
+            <span className="text-sm font-medium text-text-primary">PDF Preview</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-text-muted">
+                Changes were saved before this preview
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewing(false)}
+                className="btn btn-secondary text-xs"
+              >
+                ✕ Close preview
+              </button>
+            </div>
+          </div>
+          <iframe
+            src={`/api/v1/resume/applications/${applicationId}/pdf?inline=true`}
+            className="min-h-0 flex-1 w-full"
+            title="Resume PDF preview"
+          />
+        </div>
+      )}
     </div>
   );
 }
