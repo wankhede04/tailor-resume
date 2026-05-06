@@ -1,88 +1,75 @@
 /* eslint-disable react/no-unknown-property */
+// Template B — Classic: Formal corporate, no colour accents
+// TODO: implement distinct design based on reference PDF templates/B.pdf
 import * as React from 'react';
-import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
-import type { EditableResume, LockedResume } from './schema';
+import { Document, Page, StyleSheet, Text, View, Link } from '@react-pdf/renderer';
+import type { LockedResume } from '../schema';
+import type { ResumePdfProps } from '../pdfDocument';
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
-const NAVY   = '#1e3a5f';   // name, section headings
-const INK    = '#1a1a1a';   // body text, role/company names
-const MUTED  = '#6b7280';   // dates, location, secondary info
-const LINK_C = '#2563eb';   // email, GitHub, LinkedIn
-const RULE   = '#c8cdd5';   // all horizontal rules
+const BLACK  = '#000000';
+const INK    = '#1a1a1a';
+const MUTED  = '#4a4a4a';
+const RULE   = '#aaaaaa';
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   page: {
-    paddingHorizontal: 46,
-    paddingTop: 40,
-    paddingBottom: 38,
+    paddingHorizontal: 50,
+    paddingTop: 44,
+    paddingBottom: 40,
     fontSize: 10,
     fontFamily: 'Helvetica',
     color: INK,
   },
-
-  // ── Header ──────────────────────────────────────────────────────────────────
   name: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 700,
-    color: NAVY,
-    letterSpacing: 1,
-    marginBottom: 5,
+    color: BLACK,
+    letterSpacing: 1.5,
+    marginBottom: 4,
+    textAlign: 'center',
   },
   contactRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     flexWrap: 'wrap',
     fontSize: 9,
+    marginBottom: 8,
   },
-  contactLink: { color: LINK_C },
   contactText: { color: MUTED },
+  contactLink: { color: INK },
   contactSep:  { color: MUTED, paddingHorizontal: 5 },
   headerRule: {
-    borderBottomWidth: 1,
-    borderBottomColor: RULE,
-    marginTop: 10,
+    borderBottomWidth: 1.5,
+    borderBottomColor: BLACK,
     marginBottom: 2,
   },
-
-  // ── Section title + rule ────────────────────────────────────────────────────
   sectionTitle: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: 700,
-    color: NAVY,
-    letterSpacing: 0.5,
-    marginTop: 14,
+    color: BLACK,
+    letterSpacing: 1,
+    marginTop: 12,
     marginBottom: 2,
+    textTransform: 'uppercase',
   },
   sectionRule: {
-    borderBottomWidth: 0.75,
+    borderBottomWidth: 0.5,
     borderBottomColor: RULE,
-    marginBottom: 6,
+    marginBottom: 5,
   },
-
-  // ── Summary ─────────────────────────────────────────────────────────────────
   paragraph: { lineHeight: 1.55, color: INK },
-
-  // ── Skills ──────────────────────────────────────────────────────────────────
   skillLine: { lineHeight: 1.55, marginBottom: 0.5 },
-
-  // ── Experience ──────────────────────────────────────────────────────────────
   expEntry: { marginBottom: 10 },
   expHeaderLine: { fontSize: 10.5, marginBottom: 3 },
-
-  // ── Bullets ─────────────────────────────────────────────────────────────────
   bulletRow: { flexDirection: 'row', marginBottom: 2.5 },
   bulletDot:  { width: 13, color: INK, fontSize: 10 },
   bulletText: { flex: 1, lineHeight: 1.45 },
-
-  // ── Projects ────────────────────────────────────────────────────────────────
   projectEntry:   { marginBottom: 8 },
   projectHeader:  { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 2 },
   projectName:    { fontSize: 10.5, fontWeight: 700, color: INK },
   projectTech:    { fontSize: 8.5, color: MUTED, marginLeft: 6 },
   projectDesc:    { fontSize: 9, color: MUTED, lineHeight: 1.45, marginBottom: 2 },
-
-  // ── Education ───────────────────────────────────────────────────────────────
   eduEntry: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
   eduLeft:  { flex: 1 },
   eduDeg:   { fontWeight: 700, color: INK },
@@ -90,13 +77,7 @@ const s = StyleSheet.create({
   eduRight: { fontSize: 9, color: MUTED, textAlign: 'right' },
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-interface ContactItem {
-  label: string;
-  href?: string;
-  isText?: boolean;
-}
+interface ContactItem { label: string; href?: string; isText?: boolean; }
 
 function buildContactItems(c: LockedResume['contact']): ContactItem[] {
   const items: ContactItem[] = [];
@@ -111,18 +92,15 @@ function buildContactItems(c: LockedResume['contact']): ContactItem[] {
     const href = c.linkedin.startsWith('http') ? c.linkedin : `https://linkedin.com/in/${c.linkedin}`;
     items.push({ label: 'LinkedIn', href });
   }
-  if (c.website)  items.push({ label: c.website, href: c.website });
+  if (c.website) items.push({ label: c.website, href: c.website });
   return items;
 }
 
-/** Parse "Category: item1, item2" → { category, items } */
 function parseSkillLine(line: string): { category: string | null; items: string } {
   const idx = line.indexOf(':');
   if (idx === -1) return { category: null, items: line.trim() };
   return { category: line.slice(0, idx).trim(), items: line.slice(idx + 1).trim() };
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -142,14 +120,7 @@ function Bullet({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
-export interface ResumePdfProps {
-  locked: LockedResume;
-  editable: EditableResume;
-}
-
-export function ResumePdf({ locked, editable }: ResumePdfProps) {
+export function TemplateB({ locked, editable }: ResumePdfProps) {
   const factsById = new Map(locked.experienceFacts.map((f) => [f.id, f]));
   const contactItems = buildContactItems(locked.contact);
 
@@ -157,10 +128,8 @@ export function ResumePdf({ locked, editable }: ResumePdfProps) {
     <Document title={`${locked.name} — Resume`}>
       <Page size="LETTER" style={s.page}>
 
-        {/* ── Header ── */}
         <Text style={s.name}>{locked.name.toUpperCase()}</Text>
 
-        {/* Contact row: email | GitHub | LinkedIn */}
         <View style={s.contactRow}>
           {contactItems.map((item, i) => (
             <React.Fragment key={i}>
@@ -175,7 +144,6 @@ export function ResumePdf({ locked, editable }: ResumePdfProps) {
 
         <View style={s.headerRule} />
 
-        {/* ── Professional Summary ── */}
         {editable.summary ? (
           <>
             <SectionTitle>Professional Summary</SectionTitle>
@@ -183,28 +151,24 @@ export function ResumePdf({ locked, editable }: ResumePdfProps) {
           </>
         ) : null}
 
-        {/* ── Technical Skills ── */}
         {editable.skills.length > 0 ? (
           <>
-            <SectionTitle>Technical Skills</SectionTitle>
+            <SectionTitle>Skills</SectionTitle>
             {editable.skills.map((skill, i) => {
               const { category, items } = parseSkillLine(skill);
               return (
                 <Text key={i} style={s.skillLine}>
-                  {category
-                    ? <Text style={{ fontWeight: 700 }}>{category}: </Text>
-                    : null}
-                  <Text style={{ color: INK }}>{items}</Text>
+                  {category ? <Text style={{ fontWeight: 700 }}>{category}: </Text> : null}
+                  <Text>{items}</Text>
                 </Text>
               );
             })}
           </>
         ) : null}
 
-        {/* ── Professional Experience ── */}
         {editable.experience.length > 0 ? (
           <>
-            <SectionTitle>Professional Experience</SectionTitle>
+            <SectionTitle>Experience</SectionTitle>
             {editable.experience.map((exp) => {
               const f = factsById.get(exp.id);
               if (!f) return null;
@@ -212,25 +176,19 @@ export function ResumePdf({ locked, editable }: ResumePdfProps) {
               const meta = [f.location, dateRange].filter(Boolean).join(' · ');
               return (
                 <View key={exp.id} style={s.expEntry} wrap={false}>
-                  {/* Company — Role   Location · Dates */}
                   <Text style={s.expHeaderLine}>
                     <Text style={{ fontWeight: 700 }}>{f.company}</Text>
                     <Text style={{ color: MUTED }}>{'   —   '}</Text>
                     <Text style={{ fontWeight: 700 }}>{f.title}</Text>
-                    {meta ? (
-                      <Text style={{ fontStyle: 'italic', color: MUTED }}>{'   '}{meta}</Text>
-                    ) : null}
+                    {meta ? <Text style={{ color: MUTED }}>{'   '}{meta}</Text> : null}
                   </Text>
-                  {exp.bullets.map((b, i) => (
-                    <Bullet key={i}>{b}</Bullet>
-                  ))}
+                  {exp.bullets.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
                 </View>
               );
             })}
           </>
         ) : null}
 
-        {/* ── Projects ── */}
         {editable.projects.length > 0 ? (
           <>
             <SectionTitle>Projects</SectionTitle>
@@ -242,27 +200,20 @@ export function ResumePdf({ locked, editable }: ResumePdfProps) {
                     <Text style={s.projectTech}>{p.techStack.join(', ')}</Text>
                   ) : null}
                 </View>
-                {p.description ? (
-                  <Text style={s.projectDesc}>{p.description}</Text>
-                ) : null}
-                {p.bullets.map((b, i) => (
-                  <Bullet key={i}>{b}</Bullet>
-                ))}
+                {p.description ? <Text style={s.projectDesc}>{p.description}</Text> : null}
+                {p.bullets.map((b, i) => <Bullet key={i}>{b}</Bullet>)}
               </View>
             ))}
           </>
         ) : null}
 
-        {/* ── Education ── */}
         {locked.education.length > 0 ? (
           <>
             <SectionTitle>Education</SectionTitle>
             {locked.education.map((e, i) => (
               <View key={i} style={s.eduEntry}>
                 <View style={s.eduLeft}>
-                  <Text style={s.eduDeg}>
-                    {e.degree}{e.field ? `, ${e.field}` : ''}
-                  </Text>
+                  <Text style={s.eduDeg}>{e.degree}{e.field ? `, ${e.field}` : ''}</Text>
                   <Text style={s.eduInst}>{e.institution}</Text>
                 </View>
                 <Text style={s.eduRight}>
