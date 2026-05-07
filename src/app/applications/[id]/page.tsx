@@ -61,6 +61,7 @@ export default async function ApplicationReviewPage({
           tailored={application.tailored}
           status={application.status}
           pdfFilename={application.pdfFilename}
+          coverLetter={application.coverLetter}
         />
       </div>
     </main>

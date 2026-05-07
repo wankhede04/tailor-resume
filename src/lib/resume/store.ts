@@ -26,6 +26,7 @@ export interface ApplicationRecord {
   original: EditableResume;
   tailored: EditableResume;
   diffSnapshot: unknown;
+  coverLetter: string;
   status: 'draft' | 'finalized';
   pdfFilename: string | null;
   finalizedAt: Date | null;
@@ -62,6 +63,7 @@ function decodeApplication(row: {
   originalJson: string;
   tailoredJson: string;
   diffSnapshot: string;
+  coverLetter: string;
   status: string;
   pdfFilename: string | null;
   finalizedAt: Date | null;
@@ -77,6 +79,7 @@ function decodeApplication(row: {
     original: EditableSchema.parse(JSON.parse(row.originalJson)),
     tailored: EditableSchema.parse(JSON.parse(row.tailoredJson)),
     diffSnapshot: row.diffSnapshot ? JSON.parse(row.diffSnapshot) : {},
+    coverLetter: row.coverLetter ?? '',
     status: row.status === 'finalized' ? 'finalized' : 'draft',
     pdfFilename: row.pdfFilename,
     finalizedAt: row.finalizedAt,
@@ -204,6 +207,17 @@ export async function finalizeApplication(
       pdfFilename,
       finalizedAt: new Date(),
     },
+  });
+  return decodeApplication(row);
+}
+
+export async function updateCoverLetter(
+  id: string,
+  coverLetter: string,
+): Promise<ApplicationRecord | null> {
+  const row = await prisma.resumeApplication.update({
+    where: { id },
+    data: { coverLetter },
   });
   return decodeApplication(row);
 }

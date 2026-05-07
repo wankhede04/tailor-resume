@@ -38,6 +38,7 @@ model ResumeApplication {
   originalJson   String // JSON-encoded EditableResume (snapshot at tailoring time)
   tailoredJson   String // JSON-encoded EditableResume (AI output + manual overrides)
   diffSnapshot   String    @default("{}") // per-field accept/reject decisions
+  coverLetter    String    @default("") // AI-generated + user-edited cover letter
   status         String    @default("draft") // draft|finalized
   pdfFilename    String?
   finalizedAt    DateTime?

@@ -11,6 +11,7 @@ interface Props {
   tailored: EditableResume;
   status: 'draft' | 'finalized';
   pdfFilename: string | null;
+  coverLetter: string;
 }
 
 type FieldValues = Map<string, string>;
@@ -374,6 +375,7 @@ export function ReviewClient({
   tailored,
   status,
   pdfFilename,
+  coverLetter: initialCoverLetter,
 }: Props) {
   const diff = useMemo(() => computeDiff(original, tailored), [original, tailored]);
   const [values, setValues] = useState<FieldValues>(() => initValues(diff));
@@ -382,6 +384,8 @@ export function ReviewClient({
   const [showLatex, setShowLatex] = useState(false);
   const [latexCode, setLatexCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [coverLetter, setCoverLetter] = useState(initialCoverLetter);
+  const [generatingCover, setGeneratingCover] = useState(false);
 
   const factsById = useMemo(
     () => new Map(profile.locked.experienceFacts.map((f) => [f.id, f])),
@@ -440,7 +444,7 @@ export function ReviewClient({
       const res = await fetch(`/api/v1/resume/applications/${applicationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tailored: liveEditable, finalize: false }),
+        body: JSON.stringify({ tailored: liveEditable, coverLetter, finalize: false }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? 'Save failed');
@@ -450,6 +454,23 @@ export function ReviewClient({
       return false;
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onGenerateCoverLetter() {
+    setGeneratingCover(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/resume/applications/${applicationId}/cover-letter`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Generation failed');
+      setCoverLetter(data.coverLetter ?? '');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGeneratingCover(false);
     }
   }
 
@@ -659,6 +680,32 @@ export function ReviewClient({
               </div>
             </section>
           )}
+        </div>
+      </div>
+
+      {/* Cover Letter */}
+      <div className="rounded-lg border border-bg-border bg-bg-raised shadow-sm">
+        <div className="mx-auto max-w-3xl px-10 py-10 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="border-b border-bg-border pb-1 text-[11px] font-bold uppercase tracking-widest text-text-muted w-full">
+              Cover Letter
+            </h2>
+            <button
+              type="button"
+              onClick={onGenerateCoverLetter}
+              disabled={generatingCover || saving}
+              className="btn btn-secondary shrink-0 ml-4 text-xs"
+            >
+              {generatingCover ? 'Generating…' : coverLetter ? 'Regenerate' : 'Generate'}
+            </button>
+          </div>
+          <textarea
+            value={coverLetter}
+            onChange={(e) => setCoverLetter(e.target.value)}
+            disabled={saving || generatingCover}
+            placeholder="Click 'Generate' to create a cover letter tailored to this job description, or type your own."
+            className="w-full min-h-[320px] resize-y rounded bg-transparent px-1.5 py-1 text-sm leading-relaxed text-text-primary border border-transparent placeholder:text-text-muted/40 hover:border-bg-border focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/20 disabled:cursor-default transition-colors"
+          />
         </div>
       </div>
 

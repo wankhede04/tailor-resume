@@ -70,6 +70,14 @@ export interface TailorInput {
   jobDescription: string;
 }
 
+export interface CoverLetterInput {
+  locked: LockedResume;
+  editable: EditableResume;
+  jobTitle: string;
+  company: string;
+  jobDescription: string;
+}
+
 export async function tailorResume(input: TailorInput): Promise<EditableResume> {
   const userMessage = [
     `LOCKED FACTS (read-only context, do not modify):`,
@@ -123,4 +131,46 @@ export async function tailorResume(input: TailorInput): Promise<EditableResume> 
   }
 
   return parsed;
+}
+
+export async function generateCoverLetter(input: CoverLetterInput): Promise<string> {
+  const experienceLines = input.locked.experienceFacts.flatMap((f) => {
+    const exp = input.editable.experience.find((e) => e.id === f.id);
+    const bullets = exp?.bullets.map((b) => `    - ${b}`).join('\n') ?? '';
+    return [`  ${f.title} at ${f.company} (${f.startDate} – ${f.endDate ?? 'Present'})`, bullets].filter(Boolean);
+  });
+
+  const prompt = [
+    `Write a professional cover letter body for the following candidate applying to the role below.`,
+    ``,
+    `CANDIDATE:`,
+    `Name: ${input.locked.name}`,
+    `Summary: ${input.editable.summary}`,
+    `Skills: ${input.editable.skills.join(', ')}`,
+    `Experience:`,
+    ...experienceLines,
+    ``,
+    `TARGET ROLE:`,
+    `Job Title: ${input.jobTitle}`,
+    `Company: ${input.company}`,
+    ``,
+    `JOB DESCRIPTION:`,
+    input.jobDescription.trim(),
+    ``,
+    `INSTRUCTIONS:`,
+    `- Write 3–4 concise paragraphs (no salutation or sign-off, just the body).`,
+    `- Be specific to this role and company. Reference concrete achievements from the candidate's experience.`,
+    `- Do not invent facts, technologies, or roles not present above.`,
+    `- Keep it under 350 words.`,
+  ].join('\n');
+
+  const response = await client().messages.create({
+    model: DEFAULT_MODEL,
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const textBlock = response.content.find((b): b is Anthropic.Messages.TextBlock => b.type === 'text');
+  if (!textBlock) throw new Error('Claude did not return text for cover letter');
+  return textBlock.text.trim();
 }

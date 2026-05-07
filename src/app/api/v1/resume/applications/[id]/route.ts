@@ -6,6 +6,7 @@ import {
   getApplication,
   getProfile,
   updateApplicationTailored,
+  updateCoverLetter,
 } from '@/lib/resume/store';
 import { EditableSchema } from '@/lib/resume/schema';
 import { computeDiff, summarizeDiff } from '@/lib/resume/diff';
@@ -14,6 +15,7 @@ export const dynamic = 'force-dynamic';
 
 const PatchBody = z.object({
   tailored: EditableSchema,
+  coverLetter: z.string().optional(),
   finalize: z.boolean().optional().default(false),
 });
 
@@ -56,6 +58,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const snapshot = { diff, summary: summarizeDiff(diff) };
     let updated = await updateApplicationTailored(params.id, body.tailored, snapshot);
     if (!updated) throw new ApiError(ErrorCodes.NOT_FOUND, 'Application not found after update');
+    if (body.coverLetter !== undefined) {
+      updated = await updateCoverLetter(params.id, body.coverLetter) ?? updated;
+    }
 
     if (body.finalize) {
       const profile = await getProfile(app.profileId);
