@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Session start — branch policy
+
+At the start of every new session, before doing any work:
+
+1. Check the current branch with `git branch`.
+2. If already on a feature branch (not `main`), continue on it.
+3. If on `main`, create and switch to a new branch:
+   - Infer the task type from the user's first message: `feat`, `fix`, `chore`, or `refactor`.
+   - Summarise the task in **≤ 4 words**, lowercase, hyphen-separated.
+   - Format: `<type>/<short-task-name>` — e.g. `feat/cover-letter-tabs`, `fix/profile-editor-skills`, `chore/update-deps`.
+   - Run: `git checkout -b <branch-name>`
+4. Do all work on that branch. Commit regularly. Do **not** push or open a PR unless the user asks.
+
 ## Commands
 
 ```bash
