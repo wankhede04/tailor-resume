@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Props {
@@ -14,6 +14,19 @@ interface Props {
   };
 }
 
+const SKILL_CATEGORIES = [
+  'Expertise',
+  'Web3 & Blockchain',
+  'Developer Tooling & SDKs',
+  'Backend & Distributed Systems',
+  'Databases',
+  'Cloud, Infra & DevOps',
+  'Programming',
+  'Frontend',
+  'Monitoring & Observability',
+  'Workstyle & Practices',
+] as const;
+
 function extractSkills(editable: unknown): string {
   if (!editable || typeof editable !== 'object') return '';
   const skills = (editable as Record<string, unknown>).skills;
@@ -21,47 +34,29 @@ function extractSkills(editable: unknown): string {
   return skills.join('\n');
 }
 
-function parseSkillLine(line: string): { category: string | null; items: string } {
-  const idx = line.indexOf(':');
-  if (idx === -1) return { category: null, items: line.trim() };
-  return { category: line.slice(0, idx).trim(), items: line.slice(idx + 1).trim() };
+function parseSkillsToMap(text: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const idx = trimmed.indexOf(':');
+    if (idx === -1) continue;
+    map[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
+  }
+  return map;
+}
+
+function buildSkillsText(map: Record<string, string>): string {
+  return SKILL_CATEGORIES
+    .filter((cat) => map[cat]?.trim())
+    .map((cat) => `${cat}: ${map[cat].trim()}`)
+    .join('\n');
 }
 
 function splitSkills(text: string): string[] {
   return text.split('\n').map((s) => s.trim()).filter(Boolean);
 }
 
-// Auto-growing textarea
-function AutoTextarea({
-  value,
-  onChange,
-  placeholder,
-  className,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  className?: string;
-}) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
-  return (
-    <textarea
-      ref={ref}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={1}
-      style={{ overflow: 'hidden' }}
-      className={className}
-    />
-  );
-}
 
 export function ProfileEditor({ mode, profileId, initial }: Props) {
   const router = useRouter();
@@ -159,8 +154,6 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
     }
   }
 
-  const skillLines = splitSkills(skillsText);
-
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -207,37 +200,28 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
       {/* Structured skills editor */}
       <div>
         <label className="label">Skills Summary</label>
-        <p className="mb-2 text-xs text-text-muted">
-          One category per line · format: <code className="text-text-secondary">Category: item1, item2, item3</code>
+        <p className="mb-3 text-xs text-text-muted">
+          Fill in items for each category · format: <code className="text-text-secondary">item1, item2, item3</code>
         </p>
         <div className="space-y-2">
-          <AutoTextarea
-            value={skillsText}
-            onChange={onSkillsChange}
-            placeholder={'Expertise: NodeJS, TypeScript/JavaScript, NestJS, Express\nWeb3 & Blockchain: Ethereum, Solidity, Polygon\nDatabases: PostgreSQL, MongoDB, Redis'}
-            className="input min-h-[120px] font-mono text-xs leading-relaxed"
-          />
-
-          {/* Live formatted preview */}
-          {skillLines.length > 0 && (
-            <div className="rounded-md border border-bg-border bg-bg-surface/50 px-4 py-3 text-sm leading-relaxed">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                Preview
-              </p>
-              {skillLines.map((line, i) => {
-                const { category, items } = parseSkillLine(line);
-                return (
-                  <p key={i} className="flex gap-1">
-                    <span className="shrink-0">•</span>
-                    <span>
-                      {category && <strong className="text-text-primary">{category}: </strong>}
-                      <span className="text-text-secondary">{items}</span>
-                    </span>
-                  </p>
-                );
-              })}
-            </div>
-          )}
+          {(() => {
+            const map = parseSkillsToMap(skillsText);
+            return SKILL_CATEGORIES.map((cat) => (
+              <div key={cat} className="flex items-center gap-3">
+                <span className="w-52 shrink-0 text-xs font-medium text-text-secondary">{cat}</span>
+                <input
+                  className="input flex-1 font-mono text-xs"
+                  value={map[cat] ?? ''}
+                  onChange={(e) => {
+                    const updated = parseSkillsToMap(skillsText);
+                    updated[cat] = e.target.value;
+                    onSkillsChange(buildSkillsText(updated));
+                  }}
+                  placeholder="item1, item2, item3"
+                />
+              </div>
+            ));
+          })()}
         </div>
       </div>
 
