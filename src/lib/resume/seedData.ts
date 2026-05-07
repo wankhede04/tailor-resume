@@ -50,14 +50,11 @@ export const SAMPLE_PROFILES: Resume[] = [
       summary:
         'Full-stack engineer with 4+ years building production web platforms across React, Node.js, and Postgres. Comfortable owning features end-to-end from API design through UI polish.',
       skills: [
-        'TypeScript',
-        'React',
-        'Node.js',
-        'Next.js',
-        'PostgreSQL',
-        'Redis',
-        'Docker',
-        'AWS',
+        { category: 'Programming', items: ['TypeScript', 'JavaScript'] },
+        { category: 'Frontend', items: ['React', 'Next.js'] },
+        { category: 'Backend & Distributed Systems', items: ['Node.js'] },
+        { category: 'Databases', items: ['PostgreSQL', 'Redis'] },
+        { category: 'Cloud, Infra & DevOps', items: ['Docker', 'AWS'] },
       ],
       experience: [
         {
@@ -127,7 +124,12 @@ export const SAMPLE_PROFILES: Resume[] = [
     editable: {
       summary:
         'Backend engineer focused on payments infrastructure, distributed systems, and reliability. Strong with Go, Python, and event-driven architectures.',
-      skills: ['Go', 'Python', 'gRPC', 'Kafka', 'Postgres', 'Kubernetes', 'Terraform'],
+      skills: [
+        { category: 'Programming', items: ['Go', 'Python'] },
+        { category: 'Backend & Distributed Systems', items: ['gRPC', 'Kafka'] },
+        { category: 'Databases', items: ['Postgres'] },
+        { category: 'Cloud, Infra & DevOps', items: ['Kubernetes', 'Terraform'] },
+      ],
       experience: [
         {
           id: 'exp-payflow',
@@ -186,13 +188,9 @@ export const SAMPLE_PROFILES: Resume[] = [
       summary:
         'Frontend engineer with a strong design sensibility. Shipped polished, accessible interfaces in React and Svelte for B2B SaaS and consumer apps.',
       skills: [
-        'TypeScript',
-        'React',
-        'Svelte',
-        'Tailwind CSS',
-        'Framer Motion',
-        'Storybook',
-        'Figma',
+        { category: 'Programming', items: ['TypeScript', 'JavaScript'] },
+        { category: 'Frontend', items: ['React', 'Svelte', 'Tailwind CSS', 'Framer Motion', 'Storybook'] },
+        { category: 'Developer Tooling & SDKs', items: ['Figma'] },
       ],
       experience: [
         {

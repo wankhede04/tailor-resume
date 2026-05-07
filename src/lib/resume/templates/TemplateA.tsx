@@ -116,12 +116,6 @@ function buildContactItems(c: LockedResume['contact']): ContactItem[] {
   return items;
 }
 
-/** Parse "Category: item1, item2" → { category, items } */
-function parseSkillLine(line: string): { category: string | null; items: string } {
-  const idx = line.indexOf(':');
-  if (idx === -1) return { category: null, items: line.trim() };
-  return { category: line.slice(0, idx).trim(), items: line.slice(idx + 1).trim() };
-}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -183,17 +177,12 @@ export function TemplateA({ locked, editable }: ResumePdfProps) {
         {editable.skills.length > 0 ? (
           <>
             <SectionTitle>Technical Skills</SectionTitle>
-            {editable.skills.map((skill, i) => {
-              const { category, items } = parseSkillLine(skill);
-              return (
-                <Text key={i} style={s.skillLine}>
-                  {category
-                    ? <Text style={{ fontWeight: 700 }}>{category}: </Text>
-                    : null}
-                  <Text style={{ color: INK }}>{items}</Text>
-                </Text>
-              );
-            })}
+            {editable.skills.map((skill, i) => (
+              <Text key={i} style={s.skillLine}>
+                <Text style={{ fontWeight: 700 }}>{skill.category}: </Text>
+                <Text style={{ color: INK }}>{skill.items.join(', ')}</Text>
+              </Text>
+            ))}
           </>
         ) : null}
 

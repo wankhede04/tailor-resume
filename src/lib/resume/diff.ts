@@ -1,5 +1,5 @@
 import { diffWords } from 'diff';
-import type { EditableProject, EditableResume } from './schema';
+import type { EditableProject, EditableResume, SkillCategory } from './schema';
 
 // A semantic diff for the editable resume sections.
 // Each section produces an array of "field diffs" the UI can render
@@ -79,10 +79,22 @@ function projectByIdMap(projects: EditableProject[]): Map<string, EditableProjec
   return new Map(projects.map((p) => [p.id, p]));
 }
 
+function skillsDiff(before: SkillCategory[], after: SkillCategory[]): FieldDiff[] {
+  const beforeMap = new Map(before.map((s) => [s.category, s.items.join(', ')]));
+  const afterMap = new Map(after.map((s) => [s.category, s.items.join(', ')]));
+  const afterCats = after.map((s) => s.category);
+  const removedCats = before.filter((s) => !afterMap.has(s.category)).map((s) => s.category);
+  return [...afterCats, ...removedCats].map((cat) => {
+    const b = beforeMap.has(cat) ? `${cat}: ${beforeMap.get(cat)}` : null;
+    const a = afterMap.has(cat) ? `${cat}: ${afterMap.get(cat)}` : null;
+    return textDiff(`skills[${cat}]`, cat, b, a);
+  });
+}
+
 export function computeDiff(before: EditableResume, after: EditableResume): ResumeDiff {
   const summary = textDiff('summary', 'Professional summary', before.summary, after.summary);
 
-  const skills = arrayDiff('skills', 'Skill', before.skills, after.skills);
+  const skills = skillsDiff(before.skills, after.skills);
 
   const experience = after.experience.map((expAfter) => {
     const expBefore = before.experience.find((e) => e.id === expAfter.id);

@@ -56,9 +56,14 @@ export const EditableProjectSchema = z.object({
   techStack: z.array(z.string()),
 });
 
+export const SkillCategorySchema = z.object({
+  category: z.string(),
+  items: z.array(z.string()),
+});
+
 export const EditableSchema = z.object({
   summary: z.string(),
-  skills: z.array(z.string()),
+  skills: z.array(SkillCategorySchema),
   experience: z.array(EditableExperienceSchema),
   projects: z.array(EditableProjectSchema),
 });
@@ -74,3 +79,4 @@ export type EditableResume = z.infer<typeof EditableSchema>;
 export type Resume = z.infer<typeof ResumeSchema>;
 export type EditableExperience = z.infer<typeof EditableExperienceSchema>;
 export type EditableProject = z.infer<typeof EditableProjectSchema>;
+export type SkillCategory = z.infer<typeof SkillCategorySchema>;

@@ -20,7 +20,12 @@ async function main() {
     ...original,
     summary:
       'Senior backend engineer with 4+ years building production web platforms across React, Node.js, and Postgres. Strong at owning APIs end-to-end, with a track record of latency wins.',
-    skills: ['TypeScript', 'Node.js', 'PostgreSQL', 'Redis', 'Docker', 'AWS', 'gRPC', 'Kafka'],
+    skills: [
+      { category: 'Programming', items: ['TypeScript'] },
+      { category: 'Backend & Distributed Systems', items: ['Node.js', 'gRPC', 'Kafka'] },
+      { category: 'Databases', items: ['PostgreSQL', 'Redis'] },
+      { category: 'Cloud, Infra & DevOps', items: ['Docker', 'AWS'] },
+    ],
     experience: original.experience.map((e, i) => ({
       ...e,
       bullets: e.bullets.map((b, j) =>
