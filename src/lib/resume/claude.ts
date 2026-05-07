@@ -28,7 +28,36 @@ CRITICAL RULES:
 5. Keep bullets concise (one line each, ideally under 22 words). Lead with strong verbs. Quantify where the original did.
 6. Skills array: reorder and trim to highlight JD-relevant items. You may drop irrelevant skills, but do NOT add new skills the candidate hasn't shown.
 7. Summary: rewrite in first-third-person (no "I"), 2-3 sentences, focused on JD-relevant strengths the candidate already demonstrates.
-8. Output MUST be a valid editable resume JSON. Use the submit_tailored_resume tool to return your result.`;
+8. Output MUST be a valid editable resume JSON. Use the submit_tailored_resume tool to return your result.
+9. WRITING STYLE — avoid AI writing patterns in every text field:
+   - No filler words: "pivotal", "testament", "underscores", "highlights", "showcasing", "fostering", "enduring", "vibrant", "groundbreaking", "seamless", "robust", "leverage", "delve", "tapestry", "landscape" (abstract)
+   - Use simple "is/are/has" — not "serves as", "stands as", "marks a", "represents a"
+   - No em dashes (—); use commas or periods
+   - No "not only … but also" or similar negative parallelisms
+   - No padding rule-of-three lists where two items suffice
+   - No vague attributions ("experts say", "industry observers")
+   - No filler phrases: replace "in order to" → "to", "due to the fact that" → "because"
+   - Vary sentence length; short punchy sentences are fine next to longer ones
+   - Be specific and concrete — numbers, tools, and outcomes beat adjectives`;
+
+const HUMANIZER_SYSTEM_PROMPT = `You are a writing editor that removes AI writing patterns to make text sound natural and human. Apply every rule below, then output ONLY the rewritten text with no commentary.
+
+RULES:
+- Remove significance inflation: pivotal, testament, underscores/highlights/showcases, enduring, fostering, vibrant, groundbreaking, nestled, breathtaking, robust, leverage, delve, tapestry, landscape (abstract)
+- Remove promotional/puffery language and generic positive conclusions
+- Replace "serves as / stands as / marks a / represents a" with "is / are / has"
+- Remove em dashes (—); use commas, colons, or periods instead
+- Remove "not only … but also" and similar negative parallelisms
+- Remove rule-of-three padding where two items suffice
+- Remove vague attributions ("experts argue", "observers note", "industry reports")
+- Remove superficial -ing tack-ons that add fake depth (highlighting that…, ensuring that…, reflecting that…)
+- Replace filler phrases: "in order to" → "to", "due to the fact that" → "because", "at this point in time" → "now", "it is important to note that" → omit or state directly
+- Remove excessive hedging ("could potentially possibly be argued")
+- Remove sycophantic openers ("Great question!", "Certainly!", "I hope this helps")
+- Remove knowledge-cutoff disclaimers ("as of my last update", "based on available information")
+- Vary sentence length naturally — mix short and long
+- Use specific details over vague claims; numbers and outcomes beat adjectives
+- Add personality: a real human voice, not a press release`;
 
 const TOOL_INPUT_SCHEMA = {
   type: 'object',
@@ -133,6 +162,17 @@ export async function tailorResume(input: TailorInput): Promise<EditableResume> 
   return parsed;
 }
 
+async function humanizeText(text: string): Promise<string> {
+  const response = await client().messages.create({
+    model: DEFAULT_MODEL,
+    max_tokens: 2048,
+    system: HUMANIZER_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: text }],
+  });
+  const block = response.content.find((b): b is Anthropic.Messages.TextBlock => b.type === 'text');
+  return block ? block.text.trim() : text;
+}
+
 export async function generateCoverLetter(input: CoverLetterInput): Promise<string> {
   const experienceLines = input.locked.experienceFacts.flatMap((f) => {
     const exp = input.editable.experience.find((e) => e.id === f.id);
@@ -172,5 +212,5 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
 
   const textBlock = response.content.find((b): b is Anthropic.Messages.TextBlock => b.type === 'text');
   if (!textBlock) throw new Error('Claude did not return text for cover letter');
-  return textBlock.text.trim();
+  return humanizeText(textBlock.text.trim());
 }
