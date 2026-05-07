@@ -14,6 +14,35 @@ interface Props {
   };
 }
 
+// ---- Inline types (mirrors schema.ts) ------------------------------------
+
+type Contact = {
+  email: string; phone: string; location: string;
+  linkedin: string; github: string; website: string;
+};
+type EducationEntry = {
+  institution: string; degree: string; field: string;
+  startYear: string; endYear: string; gpa: string;
+};
+type ExperienceEntry = {
+  id: string; title: string; company: string; location: string;
+  startDate: string; endDate: string; bullets: string[];
+};
+type ProjectEntry = {
+  id: string; name: string; description: string;
+  bullets: string[]; techStack: string;
+};
+type FormState = {
+  name: string;
+  contact: Contact;
+  education: EducationEntry[];
+  experience: ExperienceEntry[];
+  summary: string;
+  projects: ProjectEntry[];
+};
+
+// ---- Constants -----------------------------------------------------------
+
 const SKILL_CATEGORIES = [
   'Expertise',
   'Web3 & Blockchain',
@@ -27,21 +56,117 @@ const SKILL_CATEGORIES = [
   'Workstyle & Practices',
 ] as const;
 
-function extractSkills(editable: unknown): string {
-  if (!editable || typeof editable !== 'object') return '';
-  const skills = (editable as Record<string, unknown>).skills;
-  if (!Array.isArray(skills)) return '';
-  return skills.join('\n');
+const CONTACT_FIELDS: [keyof Contact, string][] = [
+  ['email', 'Email'],
+  ['phone', 'Phone'],
+  ['location', 'Location'],
+  ['linkedin', 'LinkedIn'],
+  ['github', 'GitHub'],
+  ['website', 'Website'],
+];
+
+const EDU_FIELDS: [keyof EducationEntry, string][] = [
+  ['institution', 'Institution'],
+  ['degree', 'Degree'],
+  ['field', 'Field'],
+  ['startYear', 'Start Year'],
+  ['endYear', 'End Year'],
+  ['gpa', 'GPA'],
+];
+
+const EXP_FIELDS: [keyof Omit<ExperienceEntry, 'id' | 'bullets'>, string][] = [
+  ['title', 'Title'],
+  ['company', 'Company'],
+  ['location', 'Location'],
+  ['startDate', 'Start Date'],
+  ['endDate', 'End Date'],
+];
+
+// ---- Parse helpers -------------------------------------------------------
+
+function uid(): string {
+  return Math.random().toString(36).slice(2, 8);
 }
+
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : '';
+}
+
+function parseContact(v: unknown): Contact {
+  const c = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  return {
+    email: str(c.email), phone: str(c.phone), location: str(c.location),
+    linkedin: str(c.linkedin), github: str(c.github), website: str(c.website),
+  };
+}
+
+function parseEdu(v: unknown): EducationEntry {
+  const e = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  return {
+    institution: str(e.institution), degree: str(e.degree), field: str(e.field),
+    startYear: str(e.startYear), endYear: str(e.endYear), gpa: str(e.gpa),
+  };
+}
+
+function parseExp(fact: unknown, bulletsMap: Record<string, string[]>): ExperienceEntry {
+  const f = fact && typeof fact === 'object' ? (fact as Record<string, unknown>) : {};
+  const id = str(f.id) || `exp-${uid()}`;
+  return {
+    id, title: str(f.title), company: str(f.company),
+    location: str(f.location), startDate: str(f.startDate), endDate: str(f.endDate),
+    bullets: bulletsMap[id] ?? [],
+  };
+}
+
+function parseProj(v: unknown): ProjectEntry {
+  const p = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  return {
+    id: str(p.id) || `proj-${uid()}`,
+    name: str(p.name), description: str(p.description),
+    bullets: Array.isArray(p.bullets) ? (p.bullets as unknown[]).map(str) : [],
+    techStack: Array.isArray(p.techStack)
+      ? (p.techStack as unknown[]).map(str).join(', ')
+      : str(p.techStack),
+  };
+}
+
+function initForm(locked: unknown, editable: unknown): FormState {
+  const l = locked && typeof locked === 'object' ? (locked as Record<string, unknown>) : {};
+  const e = editable && typeof editable === 'object' ? (editable as Record<string, unknown>) : {};
+
+  const bulletsMap: Record<string, string[]> = {};
+  if (Array.isArray(e.experience)) {
+    for (const x of e.experience) {
+      if (x && typeof x === 'object') {
+        const ex = x as Record<string, unknown>;
+        const id = str(ex.id);
+        if (id) bulletsMap[id] = Array.isArray(ex.bullets) ? (ex.bullets as unknown[]).map(str) : [];
+      }
+    }
+  }
+
+  return {
+    name: str(l.name),
+    contact: parseContact(l.contact),
+    education: Array.isArray(l.education) ? l.education.map(parseEdu) : [],
+    experience: Array.isArray(l.experienceFacts)
+      ? l.experienceFacts.map((f) => parseExp(f, bulletsMap))
+      : [],
+    summary: str(e.summary),
+    projects: Array.isArray(e.projects) ? e.projects.map(parseProj) : [],
+  };
+}
+
+// ---- Skills helpers ------------------------------------------------------
 
 function parseSkillsToMap(text: string): Record<string, string> {
   const map: Record<string, string> = {};
   for (const line of text.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const idx = trimmed.indexOf(':');
+    const t = line.trim();
+    if (!t) continue;
+    const idx = t.indexOf(':');
     if (idx === -1) continue;
-    map[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
+    map[t.slice(0, idx).trim()] = t.slice(idx + 1).trim();
   }
   return map;
 }
@@ -57,58 +182,116 @@ function splitSkills(text: string): string[] {
   return text.split('\n').map((s) => s.trim()).filter(Boolean);
 }
 
+function extractSkillsText(editable: unknown): string {
+  if (!editable || typeof editable !== 'object') return '';
+  const skills = (editable as Record<string, unknown>).skills;
+  if (!Array.isArray(skills)) return '';
+  return (skills as unknown[]).map(str).join('\n');
+}
+
+// ---- Shared UI helpers ---------------------------------------------------
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-32 shrink-0 text-xs font-medium text-text-secondary">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({ title, badge, onAdd }: { title: string; badge?: string; onAdd?: () => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="label">{title}</span>
+        {badge && (
+          <span className="rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider bg-bg-border text-text-muted">
+            {badge}
+          </span>
+        )}
+      </div>
+      {onAdd && (
+        <button type="button" onClick={onAdd} className="btn btn-ghost text-xs">
+          + Add
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---- Main component ------------------------------------------------------
 
 export function ProfileEditor({ mode, profileId, initial }: Props) {
   const router = useRouter();
   const [slug, setSlug] = useState(initial.slug);
   const [displayName, setDisplayName] = useState(initial.displayName);
-  const [lockedText, setLockedText] = useState(JSON.stringify(initial.locked, null, 2));
-  const [editableText, setEditableText] = useState(JSON.stringify(initial.editable, null, 2));
-  const [skillsText, setSkillsText] = useState(() => extractSkills(initial.editable));
+  const [form, setForm] = useState<FormState>(() => initForm(initial.locked, initial.editable));
+  const [skillsText, setSkillsText] = useState(() => extractSkillsText(initial.editable));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function onSkillsChange(text: string) {
-    setSkillsText(text);
-    try {
-      const parsed = JSON.parse(editableText);
-      setEditableText(JSON.stringify({ ...parsed, skills: splitSkills(text) }, null, 2));
-    } catch {
-      // editableText is invalid JSON; skills will be merged on submit
-    }
+  // ---- Form updaters ----
+
+  function patch(update: Partial<FormState>) {
+    setForm((f) => ({ ...f, ...update }));
   }
 
-  function onEditableChange(text: string) {
-    setEditableText(text);
-    try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed.skills)) {
-        setSkillsText(parsed.skills.join('\n'));
-      }
-    } catch {
-      // don't sync skills from invalid JSON
-    }
+  function setContact(update: Partial<Contact>) {
+    setForm((f) => ({ ...f, contact: { ...f.contact, ...update } }));
   }
+
+  function updateEdu(i: number, update: Partial<EducationEntry>) {
+    setForm((f) => {
+      const education = [...f.education];
+      education[i] = { ...education[i], ...update };
+      return { ...f, education };
+    });
+  }
+
+  function updateExp(i: number, update: Partial<ExperienceEntry>) {
+    setForm((f) => {
+      const experience = [...f.experience];
+      experience[i] = { ...experience[i], ...update };
+      return { ...f, experience };
+    });
+  }
+
+  function updateProj(i: number, update: Partial<ProjectEntry>) {
+    setForm((f) => {
+      const projects = [...f.projects];
+      projects[i] = { ...projects[i], ...update };
+      return { ...f, projects };
+    });
+  }
+
+  // ---- Submit / delete ----
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      let locked: unknown;
-      let editable: unknown;
-      try {
-        locked = JSON.parse(lockedText);
-      } catch (err) {
-        throw new Error(`Locked JSON is invalid: ${(err as Error).message}`);
-      }
-      try {
-        const parsed = JSON.parse(editableText);
-        // Skills editor is authoritative
-        editable = { ...parsed, skills: splitSkills(skillsText) };
-      } catch (err) {
-        throw new Error(`Editable JSON is invalid: ${(err as Error).message}`);
-      }
+      const locked = {
+        name: form.name,
+        contact: form.contact,
+        education: form.education,
+        experienceFacts: form.experience.map(({ id, title, company, location, startDate, endDate }) => ({
+          id, title, company, location, startDate, endDate,
+        })),
+      };
+      const editable = {
+        summary: form.summary,
+        skills: splitSkills(skillsText),
+        experience: form.experience.map(({ id, bullets }) => ({
+          id, bullets: bullets.map((b) => b.trim()).filter(Boolean),
+        })),
+        projects: form.projects.map(({ id, name, description, bullets, techStack }) => ({
+          id, name, description,
+          bullets: bullets.map((b) => b.trim()).filter(Boolean),
+          techStack: techStack.split(',').map((s) => s.trim()).filter(Boolean),
+        })),
+      };
 
       if (mode === 'create') {
         const res = await fetch('/api/v1/resume/profiles', {
@@ -154,8 +337,12 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
     }
   }
 
+  // ---- Render ----
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-8">
+
+      {/* Slug + Display name */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
           <label className="label" htmlFor="slug">Slug</label>
@@ -185,22 +372,145 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
         </div>
       </div>
 
-      <div>
-        <label className="label" htmlFor="locked">
-          Locked JSON (facts; AI never modifies)
-        </label>
+      {/* ── LOCKED ─────────────────────────────────────────────────────── */}
+
+      {/* Identity */}
+      <div className="space-y-3">
+        <SectionHeader title="Identity" badge="locked" />
+        <Row label="Name">
+          <input
+            className="input flex-1 text-sm"
+            value={form.name}
+            onChange={(e) => patch({ name: e.target.value })}
+            placeholder="Your Name"
+          />
+        </Row>
+      </div>
+
+      {/* Contact */}
+      <div className="space-y-2">
+        <SectionHeader title="Contact" badge="locked" />
+        {CONTACT_FIELDS.map(([field, label]) => (
+          <Row key={field} label={label}>
+            <input
+              className="input flex-1 font-mono text-xs"
+              value={form.contact[field]}
+              onChange={(e) => setContact({ [field]: e.target.value })}
+              placeholder={field === 'email' ? 'you@example.com' : label}
+            />
+          </Row>
+        ))}
+      </div>
+
+      {/* Education */}
+      <div className="space-y-3">
+        <SectionHeader
+          title="Education"
+          badge="locked"
+          onAdd={() =>
+            patch({
+              education: [
+                ...form.education,
+                { institution: '', degree: '', field: '', startYear: '', endYear: '', gpa: '' },
+              ],
+            })
+          }
+        />
+        <div className="space-y-3">
+          {form.education.map((edu, i) => (
+            <div key={i} className="rounded-md border border-bg-border p-4 space-y-2">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => patch({ education: form.education.filter((_, j) => j !== i) })}
+                  className="text-xs text-red-300 hover:text-red-200"
+                >
+                  Remove
+                </button>
+              </div>
+              {EDU_FIELDS.map(([field, label]) => (
+                <Row key={field} label={label}>
+                  <input
+                    className="input flex-1 text-xs"
+                    value={edu[field]}
+                    onChange={(e) => updateEdu(i, { [field]: e.target.value })}
+                    placeholder={label}
+                  />
+                </Row>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── EXPERIENCE (locked facts + editable bullets together) ────────── */}
+
+      <div className="space-y-3">
+        <SectionHeader
+          title="Experience"
+          onAdd={() =>
+            patch({
+              experience: [
+                ...form.experience,
+                { id: `exp-${uid()}`, title: '', company: '', location: '', startDate: '', endDate: '', bullets: [] },
+              ],
+            })
+          }
+        />
+        <p className="text-xs text-text-muted">Facts are locked · Bullets are editable by AI</p>
+        <div className="space-y-4">
+          {form.experience.map((exp, i) => (
+            <div key={exp.id} className="rounded-md border border-bg-border p-4 space-y-2">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => patch({ experience: form.experience.filter((_, j) => j !== i) })}
+                  className="text-xs text-red-300 hover:text-red-200"
+                >
+                  Remove
+                </button>
+              </div>
+              {EXP_FIELDS.map(([field, label]) => (
+                <Row key={field} label={label}>
+                  <input
+                    className="input flex-1 text-xs"
+                    value={exp[field]}
+                    onChange={(e) => updateExp(i, { [field]: e.target.value })}
+                    placeholder={label}
+                  />
+                </Row>
+              ))}
+              <div className="flex items-start gap-3 pt-1">
+                <span className="w-32 shrink-0 pt-1 text-xs font-medium text-text-secondary">Bullets</span>
+                <textarea
+                  className="input flex-1 font-mono text-xs min-h-[90px] leading-relaxed"
+                  value={exp.bullets.join('\n')}
+                  onChange={(e) => updateExp(i, { bullets: e.target.value.split('\n') })}
+                  placeholder="One bullet per line"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── EDITABLE ───────────────────────────────────────────────────── */}
+
+      {/* Summary */}
+      <div className="space-y-2">
+        <SectionHeader title="Summary" badge="editable" />
         <textarea
-          id="locked"
-          className="input min-h-[280px] font-mono text-xs leading-relaxed"
-          value={lockedText}
-          onChange={(e) => setLockedText(e.target.value)}
+          className="input w-full min-h-[80px] text-sm leading-relaxed"
+          value={form.summary}
+          onChange={(e) => patch({ summary: e.target.value })}
+          placeholder="Professional summary…"
         />
       </div>
 
-      {/* Structured skills editor */}
-      <div>
-        <label className="label">Skills Summary</label>
-        <p className="mb-3 text-xs text-text-muted">
+      {/* Skills */}
+      <div className="space-y-2">
+        <SectionHeader title="Skills" badge="editable" />
+        <p className="text-xs text-text-muted">
           Fill in items for each category · format: <code className="text-text-secondary">item1, item2, item3</code>
         </p>
         <div className="space-y-2">
@@ -215,7 +525,7 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
                   onChange={(e) => {
                     const updated = parseSkillsToMap(skillsText);
                     updated[cat] = e.target.value;
-                    onSkillsChange(buildSkillsText(updated));
+                    setSkillsText(buildSkillsText(updated));
                   }}
                   placeholder="item1, item2, item3"
                 />
@@ -225,16 +535,60 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
         </div>
       </div>
 
-      <div>
-        <label className="label" htmlFor="editable">
-          Editable JSON (summary, experience bullets, projects — skills synced above)
-        </label>
-        <textarea
-          id="editable"
-          className="input min-h-[280px] font-mono text-xs leading-relaxed"
-          value={editableText}
-          onChange={(e) => onEditableChange(e.target.value)}
+      {/* Projects */}
+      <div className="space-y-3">
+        <SectionHeader
+          title="Projects"
+          badge="editable"
+          onAdd={() =>
+            patch({
+              projects: [
+                ...form.projects,
+                { id: `proj-${uid()}`, name: '', description: '', bullets: [], techStack: '' },
+              ],
+            })
+          }
         />
+        <div className="space-y-4">
+          {form.projects.map((proj, i) => (
+            <div key={proj.id} className="rounded-md border border-bg-border p-4 space-y-2">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => patch({ projects: form.projects.filter((_, j) => j !== i) })}
+                  className="text-xs text-red-300 hover:text-red-200"
+                >
+                  Remove
+                </button>
+              </div>
+              {(
+                [
+                  ['name', 'Name'],
+                  ['description', 'Description'],
+                  ['techStack', 'Tech Stack'],
+                ] as [keyof ProjectEntry, string][]
+              ).map(([field, label]) => (
+                <Row key={field} label={label}>
+                  <input
+                    className="input flex-1 text-xs"
+                    value={proj[field] as string}
+                    onChange={(e) => updateProj(i, { [field]: e.target.value })}
+                    placeholder={field === 'techStack' ? 'React, TypeScript, …' : label}
+                  />
+                </Row>
+              ))}
+              <div className="flex items-start gap-3 pt-1">
+                <span className="w-32 shrink-0 pt-1 text-xs font-medium text-text-secondary">Bullets</span>
+                <textarea
+                  className="input flex-1 font-mono text-xs min-h-[80px] leading-relaxed"
+                  value={proj.bullets.join('\n')}
+                  onChange={(e) => updateProj(i, { bullets: e.target.value.split('\n') })}
+                  placeholder="One bullet per line"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {error && (
@@ -245,7 +599,7 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
 
       <div className="flex items-center justify-between">
         <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Saving...' : mode === 'create' ? 'Create profile' : 'Save changes'}
+          {busy ? 'Saving…' : mode === 'create' ? 'Create profile' : 'Save changes'}
         </button>
         {mode === 'edit' && (
           <button
