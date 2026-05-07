@@ -60,10 +60,31 @@ export const SkillCategorySchema = z.object({
   category: z.string(),
   items: z.array(z.string()),
 });
+export type SkillCategory = z.infer<typeof SkillCategorySchema>;
+
+// Accepts both new { category, items[] } objects and legacy "Category: item1, item2"
+// strings so existing DB records migrate transparently on read.
+// z.array(z.any()) avoids union-input-type bleed into z.infer; the transform
+// return type explicitly pins the output to SkillCategory[].
+const skillsField = z.array(z.any()).transform((arr): SkillCategory[] =>
+  arr.flatMap((s: unknown) => {
+    if (typeof s === 'string') {
+      const idx = s.indexOf(':');
+      if (idx === -1) return s ? [{ category: s, items: [] }] : [];
+      const category = s.slice(0, idx).trim();
+      const items = s.slice(idx + 1).split(',').map((i) => i.trim()).filter(Boolean);
+      return category ? [{ category, items }] : [];
+    }
+    if (s && typeof s === 'object' && 'category' in s) {
+      return [s as SkillCategory];
+    }
+    return [];
+  }),
+);
 
 export const EditableSchema = z.object({
   summary: z.string(),
-  skills: z.array(SkillCategorySchema),
+  skills: skillsField,
   experience: z.array(EditableExperienceSchema),
   projects: z.array(EditableProjectSchema),
 });
@@ -79,4 +100,3 @@ export type EditableResume = z.infer<typeof EditableSchema>;
 export type Resume = z.infer<typeof ResumeSchema>;
 export type EditableExperience = z.infer<typeof EditableExperienceSchema>;
 export type EditableProject = z.infer<typeof EditableProjectSchema>;
-export type SkillCategory = z.infer<typeof SkillCategorySchema>;
