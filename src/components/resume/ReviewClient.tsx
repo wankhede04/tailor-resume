@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { EditableProject, EditableResume, LockedResume } from '@/lib/resume/schema';
 import { computeDiff, type FieldDiff, type ResumeDiff } from '@/lib/resume/diff';
-import { TEMPLATE_LIST, DEFAULT_TEMPLATE_ID, type TemplateId } from '@/lib/resume/templates';
 
 interface Props {
   applicationId: string;
@@ -84,6 +82,163 @@ function countChanges(diff: ResumeDiff): number {
   diff.experience.forEach((e) => e.bullets.forEach(tally));
   diff.projects.forEach((p) => { tally(p.name); tally(p.description); p.bullets.forEach(tally); });
   return n;
+}
+
+// ─── LaTeX generation ─────────────────────────────────────────────────────────
+
+function esc(s: string): string {
+  return s
+    .replace(/\\/g, '\\textbackslash{}')
+    .replace(/&/g, '\\&')
+    .replace(/%/g, '\\%')
+    .replace(/\$/g, '\\$')
+    .replace(/#/g, '\\#')
+    .replace(/_/g, '\\_')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/~/g, '\\textasciitilde{}')
+    .replace(/\^/g, '\\textasciicircum{}');
+}
+
+function generateLatex(locked: LockedResume, editable: EditableResume): string {
+  const c = locked.contact;
+  const factsById = new Map(locked.experienceFacts.map((f) => [f.id, f]));
+
+  // Build contact line
+  const contactParts: string[] = [];
+  if (c.email)    contactParts.push(`\\href{mailto:${c.email}}{${esc(c.email)}}`);
+  if (c.phone)    contactParts.push(esc(c.phone));
+  if (c.location) contactParts.push(esc(c.location));
+  if (c.github) {
+    const url = c.github.startsWith('http') ? c.github : `https://github.com/${c.github}`;
+    contactParts.push(`\\href{${url}}{GitHub}`);
+  }
+  if (c.linkedin) {
+    const url = c.linkedin.startsWith('http') ? c.linkedin : `https://linkedin.com/in/${c.linkedin}`;
+    contactParts.push(`\\href{${url}}{LinkedIn}`);
+  }
+  if (c.website) contactParts.push(`\\href{${c.website}}{${esc(c.website)}}`);
+
+  const lines: string[] = [];
+
+  lines.push(String.raw`\documentclass[letterpaper,11pt]{article}`);
+  lines.push(String.raw`\usepackage[left=0.75in,top=0.55in,right=0.75in,bottom=0.55in]{geometry}`);
+  lines.push(String.raw`\usepackage[hidelinks]{hyperref}`);
+  lines.push(String.raw`\usepackage{enumitem}`);
+  lines.push(String.raw`\usepackage[T1]{fontenc}`);
+  lines.push(String.raw`\usepackage[utf8]{inputenc}`);
+  lines.push(String.raw`\usepackage{lmodern}`);
+  lines.push('');
+  lines.push(String.raw`\pagestyle{empty}`);
+  lines.push(String.raw`\setlength{\parindent}{0pt}`);
+  lines.push(String.raw`\setlength{\parskip}{0pt}`);
+  lines.push('');
+  // Section command
+  lines.push(String.raw`\newcommand{\ressection}[1]{%`);
+  lines.push(String.raw`  \vspace{6pt}\textbf{\large #1}%`);
+  lines.push(String.raw`  \vspace{2pt}\hrule\vspace{4pt}%`);
+  lines.push('}');
+  lines.push('');
+  lines.push(String.raw`\begin{document}`);
+  lines.push('');
+
+  // ── Header ──
+  lines.push(String.raw`{\centering`);
+  lines.push(`  {\\Huge \\textbf{${esc(locked.name)}}}\\\\[4pt]`);
+  if (contactParts.length > 0) {
+    lines.push(`  ${contactParts.join(' $|$ ')}\\\\`);
+  }
+  lines.push('}');
+  lines.push(String.raw`\vspace{4pt}`);
+
+  // ── Summary ──
+  if (editable.summary) {
+    lines.push('');
+    lines.push(String.raw`\ressection{Professional Summary}`);
+    lines.push(esc(editable.summary));
+  }
+
+  // ── Skills ──
+  if (editable.skills.length > 0) {
+    lines.push('');
+    lines.push(String.raw`\ressection{Technical Skills}`);
+    lines.push(String.raw`\begin{itemize}[leftmargin=0pt, label={}, itemsep=1pt, parsep=0pt]`);
+    for (const skill of editable.skills) {
+      const idx = skill.indexOf(':');
+      if (idx !== -1) {
+        const cat = skill.slice(0, idx).trim();
+        const items = skill.slice(idx + 1).trim();
+        lines.push(`  \\item \\textbf{${esc(cat)}:} ${esc(items)}`);
+      } else {
+        lines.push(`  \\item ${esc(skill)}`);
+      }
+    }
+    lines.push(String.raw`\end{itemize}`);
+  }
+
+  // ── Experience ──
+  if (editable.experience.length > 0) {
+    lines.push('');
+    lines.push(String.raw`\ressection{Professional Experience}`);
+    for (const exp of editable.experience) {
+      const f = factsById.get(exp.id);
+      if (!f) continue;
+      const dateRange = f.endDate ? `${f.startDate} -- ${f.endDate}` : `${f.startDate} -- Present`;
+      lines.push('');
+      lines.push(String.raw`\noindent`);
+      lines.push(`\\textbf{${esc(f.company)}} \\hfill ${esc(dateRange)}\\\\`);
+      lines.push(`\\textit{${esc(f.title)}}${f.location ? ` \\hfill ${esc(f.location)}` : ''}\\\\[-4pt]`);
+      if (exp.bullets.length > 0) {
+        lines.push(String.raw`\begin{itemize}[leftmargin=12pt, itemsep=1pt, parsep=0pt, topsep=2pt]`);
+        for (const b of exp.bullets) {
+          lines.push(`  \\item ${esc(b)}`);
+        }
+        lines.push(String.raw`\end{itemize}`);
+      }
+    }
+  }
+
+  // ── Projects ──
+  if (editable.projects.length > 0) {
+    lines.push('');
+    lines.push(String.raw`\ressection{Projects}`);
+    for (const p of editable.projects) {
+      lines.push('');
+      lines.push(String.raw`\noindent`);
+      const techStr = p.techStack && p.techStack.length > 0
+        ? ` \\textit{\\small (${esc(p.techStack.join(', '))})}` : '';
+      lines.push(`\\textbf{${esc(p.name)}}${techStr}\\\\[-4pt]`);
+      if (p.description) {
+        lines.push(`${esc(p.description)}\\\\[-4pt]`);
+      }
+      if (p.bullets.length > 0) {
+        lines.push(String.raw`\begin{itemize}[leftmargin=12pt, itemsep=1pt, parsep=0pt, topsep=2pt]`);
+        for (const b of p.bullets) {
+          lines.push(`  \\item ${esc(b)}`);
+        }
+        lines.push(String.raw`\end{itemize}`);
+      }
+    }
+  }
+
+  // ── Education ──
+  if (locked.education.length > 0) {
+    lines.push('');
+    lines.push(String.raw`\ressection{Education}`);
+    for (const e of locked.education) {
+      const years = e.startYear ? `${e.startYear} -- ${e.endYear ?? ''}` : (e.endYear ?? '');
+      const degreeStr = e.field ? `${esc(e.degree)}, ${esc(e.field)}` : esc(e.degree);
+      lines.push('');
+      lines.push(String.raw`\noindent`);
+      lines.push(`\\textbf{${esc(e.institution)}} \\hfill ${esc(years)}\\\\`);
+      lines.push(`${degreeStr}${e.gpa ? ` \\hfill GPA: ${esc(String(e.gpa))}` : ''}\\\\`);
+    }
+  }
+
+  lines.push('');
+  lines.push(String.raw`\end{document}`);
+
+  return lines.join('\n');
 }
 
 // Word-style tracked changes hint shown below each field
@@ -220,15 +375,13 @@ export function ReviewClient({
   status,
   pdfFilename,
 }: Props) {
-  const router = useRouter();
   const diff = useMemo(() => computeDiff(original, tailored), [original, tailored]);
   const [values, setValues] = useState<FieldValues>(() => initValues(diff));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedFilename, setSavedFilename] = useState<string | null>(pdfFilename);
-  const [finalized, setFinalized] = useState(status === 'finalized');
-  const [previewing, setPreviewing] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(DEFAULT_TEMPLATE_ID);
+  const [showLatex, setShowLatex] = useState(false);
+  const [latexCode, setLatexCode] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const factsById = useMemo(
     () => new Map(profile.locked.experienceFacts.map((f) => [f.id, f])),
@@ -280,21 +433,17 @@ export function ReviewClient({
     });
   }
 
-  async function persist(finalize: boolean): Promise<boolean> {
+  async function persist(): Promise<boolean> {
     setSaving(true);
     setError(null);
     try {
       const res = await fetch(`/api/v1/resume/applications/${applicationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tailored: liveEditable, finalize }),
+        body: JSON.stringify({ tailored: liveEditable, finalize: false }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? 'Save failed');
-      if (finalize) {
-        setFinalized(true);
-        setSavedFilename(data.application.pdfFilename ?? null);
-      }
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -304,25 +453,24 @@ export function ReviewClient({
     }
   }
 
-  async function onFinalizeAndDownload() {
-    const ok = await persist(true);
-    if (ok) {
-      window.open(`/api/v1/resume/applications/${applicationId}/pdf?template=${selectedTemplate}`, '_blank');
-      router.refresh();
-    }
+  async function onGenerateLatex() {
+    await persist();
+    setLatexCode(generateLatex(profile.locked, liveEditable));
+    setShowLatex(true);
+    setCopied(false);
   }
 
-  async function onPreview() {
-    // Save current state so the PDF endpoint reflects the latest edits
-    await persist(false);
-    setPreviewing(true);
+  function onCopyLatex() {
+    navigator.clipboard.writeText(latexCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
 
   const blockProps = (f: FieldDiff): FieldProps => ({
     field: f,
     value: values.get(f.path) ?? '',
     onChange: (v) => setValue(f.path, v),
-    disabled: finalized,
   });
 
   return (
@@ -345,63 +493,33 @@ export function ReviewClient({
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-md border border-bg-border bg-bg-raised p-0.5">
-              {TEMPLATE_LIST.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  title={t.description}
-                  onClick={() => setSelectedTemplate(t.id)}
-                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                    selectedTemplate === t.id
-                      ? 'bg-accent-primary text-white'
-                      : 'text-text-muted hover:text-text-primary'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <button type="button" onClick={acceptAll} className="btn btn-ghost text-xs" disabled={finalized}>
+            <button type="button" onClick={acceptAll} className="btn btn-ghost text-xs">
               Accept all
             </button>
-            <button type="button" onClick={rejectAll} className="btn btn-ghost text-xs" disabled={finalized}>
+            <button type="button" onClick={rejectAll} className="btn btn-ghost text-xs">
               Reject all
             </button>
             <button
               type="button"
-              onClick={() => persist(false)}
+              onClick={persist}
               className="btn btn-secondary"
-              disabled={saving || finalized}
+              disabled={saving}
             >
               {saving ? 'Saving…' : 'Save draft'}
             </button>
             <button
               type="button"
-              onClick={onPreview}
-              className="btn btn-secondary"
-              disabled={saving}
-            >
-              Preview PDF
-            </button>
-            <button
-              type="button"
-              onClick={onFinalizeAndDownload}
+              onClick={onGenerateLatex}
               className="btn btn-primary"
               disabled={saving}
             >
-              {finalized ? 'Re-download PDF' : 'Finalize & download PDF'}
+              Generate LaTeX
             </button>
           </div>
         </div>
         {error && (
           <div className="mt-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs text-red-300">
             {error}
-          </div>
-        )}
-        {savedFilename && (
-          <div className="mt-2 text-xs text-text-muted">
-            Saved as <code className="text-text-secondary">{savedFilename}</code>
           </div>
         )}
       </div>
@@ -425,7 +543,7 @@ export function ReviewClient({
                 <AutoTextarea
                   value={values.get(SKILLS_KEY) ?? ''}
                   onChange={(v) => setValue(SKILLS_KEY, v)}
-                  disabled={finalized}
+                  disabled={saving}
                   placeholder={'Expertise: NodeJS, TypeScript\nDatabases: PostgreSQL, Redis'}
                   className={fieldClass}
                 />
@@ -484,7 +602,7 @@ export function ReviewClient({
                       <AutoTextarea
                         value={combined}
                         onChange={(v) => setValue(key, v)}
-                        disabled={finalized}
+                        disabled={saving}
                         placeholder="One bullet per line…"
                         className={fieldClass}
                       />
@@ -523,7 +641,7 @@ export function ReviewClient({
                         <AutoTextarea
                           value={combined}
                           onChange={(v) => setValue(key, v)}
-                          disabled={finalized}
+                          disabled={saving}
                           placeholder="One bullet per line…"
                           className={fieldClass}
                         />
@@ -544,28 +662,38 @@ export function ReviewClient({
         </div>
       </div>
 
-      {/* PDF preview overlay */}
-      {previewing && (
+      {/* LaTeX overlay */}
+      {showLatex && (
         <div className="fixed inset-0 z-50 flex flex-col bg-bg-base">
           <div className="flex shrink-0 items-center justify-between border-b border-bg-border bg-bg-raised px-6 py-3">
-            <span className="text-sm font-medium text-text-primary">PDF Preview</span>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-text-muted">
-                Changes were saved before this preview
+            <div>
+              <span className="text-sm font-medium text-text-primary">LaTeX Source</span>
+              <span className="ml-3 text-xs text-text-muted">
+                Paste into Overleaf or compile with <code>pdflatex</code>
               </span>
+            </div>
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setPreviewing(false)}
+                onClick={onCopyLatex}
                 className="btn btn-secondary text-xs"
               >
-                ✕ Close preview
+                {copied ? 'Copied!' : 'Copy all'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLatex(false)}
+                className="btn btn-ghost text-xs"
+              >
+                ✕ Close
               </button>
             </div>
           </div>
-          <iframe
-            src={`/api/v1/resume/applications/${applicationId}/pdf?inline=true&template=${selectedTemplate}`}
-            className="min-h-0 flex-1 w-full"
-            title="Resume PDF preview"
+          <textarea
+            readOnly
+            value={latexCode}
+            className="min-h-0 flex-1 resize-none bg-bg-surface p-6 font-mono text-xs leading-relaxed text-text-secondary focus:outline-none"
+            spellCheck={false}
           />
         </div>
       )}
