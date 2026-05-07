@@ -386,6 +386,7 @@ export function ReviewClient({
   const [copied, setCopied] = useState(false);
   const [coverLetter, setCoverLetter] = useState(initialCoverLetter);
   const [generatingCover, setGeneratingCover] = useState(false);
+  const [activeTab, setActiveTab] = useState<'resume' | 'cover-letter'>('resume');
 
   const factsById = useMemo(
     () => new Map(profile.locked.experienceFacts.map((f) => [f.id, f])),
@@ -496,46 +497,69 @@ export function ReviewClient({
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
+      {/* Sticky toolbar */}
       <div className="sticky top-0 z-10 -mx-6 border-b border-bg-border bg-bg-base/90 px-6 py-3 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3 text-sm">
-            <span>
-              <span className="font-semibold text-amber-300">{changedCount}</span>
-              <span className="text-text-muted"> AI changes</span>
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-text-muted">
-              <span className="rounded bg-emerald-500/20 px-1 text-[10px] text-emerald-300 underline">
-                inserted
+          {/* Tabs + resume change count */}
+          <div className="flex items-center gap-4">
+            <div className="flex rounded-md border border-bg-border text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveTab('resume')}
+                className={`px-3 py-1.5 rounded-l-md transition-colors ${activeTab === 'resume' ? 'bg-bg-raised text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('cover-letter')}
+                className={`px-3 py-1.5 rounded-r-md border-l border-bg-border transition-colors ${activeTab === 'cover-letter' ? 'bg-bg-raised text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
+              >
+                Cover Letter
+              </button>
+            </div>
+            {activeTab === 'resume' && (
+              <span className="flex items-center gap-3 text-sm">
+                <span>
+                  <span className="font-semibold text-amber-300">{changedCount}</span>
+                  <span className="text-text-muted"> AI changes</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                  <span className="rounded bg-emerald-500/20 px-1 text-[10px] text-emerald-300 underline">inserted</span>
+                  <span className="rounded bg-red-500/20 px-1 text-[10px] text-red-300 line-through">deleted</span>
+                </span>
               </span>
-              <span className="rounded bg-red-500/20 px-1 text-[10px] text-red-300 line-through">
-                deleted
-              </span>
-            </span>
+            )}
           </div>
+
+          {/* Actions — vary by tab */}
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={acceptAll} className="btn btn-ghost text-xs">
-              Accept all
-            </button>
-            <button type="button" onClick={rejectAll} className="btn btn-ghost text-xs">
-              Reject all
-            </button>
-            <button
-              type="button"
-              onClick={persist}
-              className="btn btn-secondary"
-              disabled={saving}
-            >
-              {saving ? 'Saving…' : 'Save draft'}
-            </button>
-            <button
-              type="button"
-              onClick={onGenerateLatex}
-              className="btn btn-primary"
-              disabled={saving}
-            >
-              Generate LaTeX
-            </button>
+            {activeTab === 'resume' ? (
+              <>
+                <button type="button" onClick={acceptAll} className="btn btn-ghost text-xs">Accept all</button>
+                <button type="button" onClick={rejectAll} className="btn btn-ghost text-xs">Reject all</button>
+                <button type="button" onClick={persist} className="btn btn-secondary" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save draft'}
+                </button>
+                <button type="button" onClick={onGenerateLatex} className="btn btn-primary" disabled={saving}>
+                  Generate LaTeX
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onGenerateCoverLetter}
+                  disabled={generatingCover || saving}
+                  className="btn btn-secondary text-xs"
+                >
+                  {generatingCover ? 'Generating…' : coverLetter ? 'Regenerate' : 'Generate'}
+                </button>
+                <button type="button" onClick={persist} className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save draft'}
+                </button>
+              </>
+            )}
           </div>
         </div>
         {error && (
@@ -545,7 +569,8 @@ export function ReviewClient({
         )}
       </div>
 
-      {/* Document */}
+      {/* Resume tab */}
+      {activeTab === 'resume' && (
       <div className="rounded-lg border border-bg-border bg-bg-raised shadow-sm">
         <div className="mx-auto max-w-3xl space-y-8 px-10 py-12">
 
@@ -682,32 +707,22 @@ export function ReviewClient({
           )}
         </div>
       </div>
+      )}
 
-      {/* Cover Letter */}
-      <div className="rounded-lg border border-bg-border bg-bg-raised shadow-sm">
-        <div className="mx-auto max-w-3xl px-10 py-10 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="border-b border-bg-border pb-1 text-[11px] font-bold uppercase tracking-widest text-text-muted w-full">
-              Cover Letter
-            </h2>
-            <button
-              type="button"
-              onClick={onGenerateCoverLetter}
-              disabled={generatingCover || saving}
-              className="btn btn-secondary shrink-0 ml-4 text-xs"
-            >
-              {generatingCover ? 'Generating…' : coverLetter ? 'Regenerate' : 'Generate'}
-            </button>
+      {/* Cover Letter tab */}
+      {activeTab === 'cover-letter' && (
+        <div className="rounded-lg border border-bg-border bg-bg-raised shadow-sm">
+          <div className="mx-auto max-w-3xl px-10 py-10">
+            <textarea
+              value={coverLetter}
+              onChange={(e) => setCoverLetter(e.target.value)}
+              disabled={saving || generatingCover}
+              placeholder="Click 'Generate' to create a cover letter tailored to this job description, or type your own."
+              className="w-full min-h-[480px] resize-y rounded bg-transparent px-1.5 py-1 text-sm leading-relaxed text-text-primary border border-transparent placeholder:text-text-muted/40 hover:border-bg-border focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/20 disabled:cursor-default transition-colors"
+            />
           </div>
-          <textarea
-            value={coverLetter}
-            onChange={(e) => setCoverLetter(e.target.value)}
-            disabled={saving || generatingCover}
-            placeholder="Click 'Generate' to create a cover letter tailored to this job description, or type your own."
-            className="w-full min-h-[320px] resize-y rounded bg-transparent px-1.5 py-1 text-sm leading-relaxed text-text-primary border border-transparent placeholder:text-text-muted/40 hover:border-bg-border focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/20 disabled:cursor-default transition-colors"
-          />
         </div>
-      </div>
+      )}
 
       {/* LaTeX overlay */}
       {showLatex && (
