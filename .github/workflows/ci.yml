@@ -82,17 +82,18 @@ jobs:
           push: false
           load: true
           platforms: linux/amd64
-          tags: flowboard:ci
-          cache-from: type=gha,scope=flowboard
-          cache-to: type=gha,mode=max,scope=flowboard
+          tags: tailor-resume:ci
+          cache-from: type=gha,scope=tailor-resume
+          cache-to: type=gha,mode=max,scope=tailor-resume
 
       - name: Smoke test runtime container
         run: |
           docker run --rm -d \
-            -e DATABASE_URL="file:/data/flowboard.db" \
+            -e DATABASE_URL="file:/data/tailor.db" \
             -e JWT_SECRET="ci-secret" \
+            -e ANTHROPIC_API_KEY="sk-ant-placeholder" \
             -p 3000:3000 \
-            --name fb-ci flowboard:ci
+            --name tailor-ci tailor-resume:ci
           # wait for healthz to come up (max 60s)
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:3000/api/healthz >/dev/null 2>&1; then
@@ -103,5 +104,5 @@ jobs:
           done
           curl -fsS http://localhost:3000/api/healthz
           curl -fsS http://localhost:3000/api/readyz
-          docker logs fb-ci | tail -50
-          docker stop fb-ci
+          docker logs tailor-ci | tail -50
+          docker stop tailor-ci

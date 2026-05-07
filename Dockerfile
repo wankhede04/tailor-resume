@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
-# FlowBoard — production image.
-# Multi-stage build per TechSpec §23.15. The runtime image runs the Next.js
-# standalone server (which bundles its own slim node_modules) under a
-# non-root user, plus a minimal prisma CLI for one-shot schema sync at boot.
+# Tailor Resume — production image.
+# Multi-stage build. The runtime image runs the Next.js standalone server
+# (which bundles its own slim node_modules) under a non-root user, plus a
+# minimal prisma CLI for one-shot schema sync at boot.
 
 ARG NODE_VERSION=20.18.1
 ARG PNPM_VERSION=10.33.0
@@ -59,7 +59,7 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     NEXT_TELEMETRY_DISABLED=1 \
-    DATABASE_URL="file:/data/flowboard.db"
+    DATABASE_URL="file:/data/tailor.db"
 
 # Standalone bundle includes the slice of node_modules (and Prisma engines)
 # that the server needs at runtime.

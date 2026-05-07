@@ -1,40 +1,15 @@
-# Resume Tailor & FlowBoard
+# Tailor Resume
 
-This repository now hosts two apps that share the same Next.js + Prisma
-infrastructure:
-
-1. **Resume Tailor** *(primary, at `/`)* — AI-powered resume tailoring system
-   per the [Plan of Action](#resume-tailor). Pick a candidate profile, paste
-   a job description, let Claude rewrite the editable sections, review every
-   change in a Git-style diff, manually override what you want, and export a
-   `profile-name_company_date.pdf` — every application logged with its diff
-   snapshot.
-2. **FlowBoard** *(at `/workspace`)* — the original Kanban tracker described
-   in [`TechSpec.md`](./TechSpec.md). Unchanged.
+AI-powered resume tailoring. Pick a candidate profile, paste a job description, let Claude rewrite the editable sections, review every change in a Git-style diff, manually override what you want, and export a PDF — every application logged with its diff snapshot.
 
 ---
 
-## Resume Tailor
-
-AI Resume Tailor & Job Apply System. Implements all six core features from
-the Plan of Action:
-
-| Feature | Where it lives |
-| --- | --- |
-| JSON Profile Store (locked vs editable) | `src/lib/resume/schema.ts`, `prisma/schema.prisma` (`ResumeProfile`) |
-| JD-Driven Tailoring | `src/lib/resume/claude.ts`, `POST /api/v1/resume/applications` |
-| PDF Export | `src/lib/resume/pdfDocument.tsx`, `GET /api/v1/resume/applications/{id}/pdf` |
-| Git-Diff Change Review | `src/lib/resume/diff.ts`, `src/components/resume/ReviewClient.tsx` |
-| Inline Manual Edit | `ReviewClient` per-line `keep AI / revert / edit` controls |
-| Application Tracker | `src/app/applications/page.tsx`, `prisma/schema.prisma` (`ResumeApplication`) |
-
-### Quick start (Resume Tailor)
+## Quick start
 
 ```bash
 pnpm install
 cp .env.example .env
-# Required for tailoring — get a key at https://console.anthropic.com/
-echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> .env
+# Edit .env and set ANTHROPIC_API_KEY — get one at https://console.anthropic.com/
 pnpm db:push
 pnpm db:seed     # creates 3 sample profiles: anurag-fullstack, shreya-backend, shivani-frontend
 pnpm dev         # http://localhost:3000
@@ -43,253 +18,175 @@ pnpm dev         # http://localhost:3000
 End-to-end flow:
 
 1. Open `/` — see the seeded profiles.
-2. Click a profile, then **Tailor for a job**.
-3. Paste a JD, hit **Tailor with AI**. Claude (Sonnet by default) rewrites the
-   editable sections; the locked section (name, contact, education, job
-   titles, companies, dates) is sent as read-only context and validated
-   on the way back.
-4. The diff review screen shows every changed line in red/green with
-   word-level highlights. Per-line: **keep AI**, **revert**, or **edit**.
-   Bulk: **Accept all** / **Reject all**.
-5. Click **Finalize & download PDF** — the file is saved with name
-   `slug_company_yyyy-mm-dd.pdf` and the application is logged at
-   `/applications`.
+2. Click a profile → **Tailor for a job**.
+3. Paste a JD, hit **Tailor with AI**. Claude rewrites the editable sections; the locked section (name, contact, education, job titles, companies, dates) is sent as read-only context and validated on the way back.
+4. The diff review screen shows every changed line with word-level highlights. Per-line: **keep AI**, **revert**, or **edit inline**. Bulk: **Accept all / Reject all**.
+5. Click **Finalize** — the application is logged at `/applications` with its full diff snapshot.
 
-### Resume JSON schema
+---
 
-Each profile has two top-level buckets (Plan §5):
+## Features
+
+| Feature | Where |
+| --- | --- |
+| JSON Profile Store (locked vs editable) | `src/lib/resume/schema.ts`, `prisma/schema.prisma` |
+| JD-Driven AI Tailoring | `src/lib/resume/claude.ts`, `POST /api/v1/resume/applications` |
+| LaTeX / PDF Export | `src/lib/resume/pdfDocument.tsx`, `GET /api/v1/resume/applications/{id}/pdf` |
+| Git-Diff Change Review | `src/lib/resume/diff.ts`, `src/components/resume/ReviewClient.tsx` |
+| Inline Manual Edit | Per-line keep / revert / edit controls in `ReviewClient` |
+| Application Tracker | `src/app/applications/`, `ResumeApplication` model |
+
+---
+
+## Resume JSON schema
+
+Each profile has two top-level buckets:
 
 ```jsonc
 {
   "profileId": "vijay-backend",
   "locked": {
     "name": "Vijay Wankhede",
-    "contact": { "email": "...", "phone": "...", "location": "...", "linkedin": "...", "github": "...", "website": "..." },
-    "education": [{ "institution": "...", "degree": "...", "field": "...", "startYear": "...", "endYear": "...", "gpa": "..." }],
-    // Job titles/companies/dates are facts. Only these IDs link bullets to roles.
-    "experienceFacts": [{ "id": "exp-acme", "title": "...", "company": "...", "location": "...", "startDate": "...", "endDate": "..." }]
+    "contact": { "email": "...", "phone": "...", "location": "...", "linkedin": "...", "github": "..." },
+    "education": [{ "institution": "...", "degree": "...", "field": "...", "startYear": "...", "endYear": "..." }],
+    // Job titles / companies / dates are facts — Claude may not change these.
+    "experienceFacts": [{ "id": "exp-acme", "title": "...", "company": "...", "startDate": "...", "endDate": "..." }]
   },
   "editable": {
     "summary": "...",
     "skills": ["..."],
-    // Same ids as locked.experienceFacts. Bullets are tailorable, role facts are not.
+    // Same ids as locked.experienceFacts — bullets are tailorable, role facts are not.
     "experience": [{ "id": "exp-acme", "bullets": ["..."] }],
     "projects": [{ "id": "proj-x", "name": "...", "description": "...", "bullets": ["..."], "techStack": ["..."] }]
   }
 }
 ```
 
-The Anthropic call uses tool use to enforce structured JSON output, plus a
-post-validation step that rejects any response whose experience IDs don't
-match the input.
-
-### Configuration
-
-| Env var | Purpose |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | Required for `/api/v1/resume/applications` POST. |
-| `CLAUDE_MODEL` | Override the model. Default: `claude-sonnet-4-6`. |
-| `DATABASE_URL` | SQLite by default (`file:./dev.db`). Postgres works too — see deviations table below. |
-
-### REST API (Resume Tailor)
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/v1/resume/profiles` | List all profiles |
-| POST | `/api/v1/resume/profiles` | Create profile |
-| GET | `/api/v1/resume/profiles/{id}` | Get profile |
-| PATCH | `/api/v1/resume/profiles/{id}` | Update profile (display name, locked, editable) |
-| DELETE | `/api/v1/resume/profiles/{id}` | Delete profile and its applications |
-| GET | `/api/v1/resume/applications` | List applications |
-| POST | `/api/v1/resume/applications` | Tailor a profile against a JD (calls Claude) |
-| GET | `/api/v1/resume/applications/{id}` | Get application + diff |
-| PATCH | `/api/v1/resume/applications/{id}` | Save manual edits to tailored output; optionally `finalize: true` |
-| GET | `/api/v1/resume/applications/{id}/pdf` | Render PDF (uses current tailored state) |
-
-Errors use the shared `{ error: { code, message, details }, request_id }`
-envelope from the FlowBoard build (`src/lib/api.ts`).
+The Anthropic call uses tool use to enforce structured JSON output, plus a post-validation step that rejects any response whose experience IDs don't match the input.
 
 ---
 
-## FlowBoard
+## Configuration
 
-A working implementation of the FlowBoard Kanban tracker described in
-[`TechSpec.md`](./TechSpec.md). This build delivers Phases 1–4 of the spec —
-the core flow board: workspaces, projects, columns with WIP limits, tickets
-with optimistic locking, comments, an activity log, and drag-and-drop board
-UI with optimistic UI + rollback.
+| Variable | Purpose |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Required for AI tailoring. |
+| `CLAUDE_MODEL` | Model override. Default: `claude-sonnet-4-6`. |
+| `DATABASE_URL` | Defaults to `file:./dev.db`. Postgres works — change `provider` in `prisma/schema.prisma`. |
+| `JWT_SECRET` | Required in production. |
 
-## Quick start
+---
 
-```bash
-pnpm install
-cp .env.example .env
-pnpm db:push        # creates SQLite schema
-pnpm db:seed        # demo workspace, project, ~20 tickets, 4 users
-pnpm dev            # http://localhost:3000
+## REST API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/resume/profiles` | List profiles |
+| POST | `/api/v1/resume/profiles` | Create profile |
+| GET | `/api/v1/resume/profiles/{id}` | Get profile |
+| PATCH | `/api/v1/resume/profiles/{id}` | Update profile |
+| DELETE | `/api/v1/resume/profiles/{id}` | Delete profile + applications |
+| GET | `/api/v1/resume/applications` | List applications |
+| POST | `/api/v1/resume/applications` | Tailor a profile against a JD (calls Claude) |
+| GET | `/api/v1/resume/applications/{id}` | Get application + diff |
+| PATCH | `/api/v1/resume/applications/{id}` | Save manual edits; optionally `finalize: true` |
+| GET | `/api/v1/resume/applications/{id}/pdf` | Render PDF |
+
+All responses use the envelope:
+
+```json
+{ "data": {}, "request_id": "req_01HXYZ..." }
 ```
 
-Click **Sign in as demo user** on the home page. You'll land on the demo
-workspace and can open the seeded *FlowBoard MVP* project.
+Errors:
 
-## What's implemented
+```json
+{ "error": { "code": "SNAKE_CASE", "message": "..." }, "request_id": "req_01HXYZ..." }
+```
 
-| Spec section | Status |
-| --- | --- |
-| §3 Monorepo layout | Single Next.js app instead of multi-service monorepo (deviation, see below) |
-| §4 Conventions — naming, error envelope, IDs | Done |
-| §5.2 Domain model | Done — Prisma schema mirrors the DDL |
-| §5.4 Fractional indexing for ranks | Done — uses `fractional-indexing` |
-| §6.2 REST endpoints (workspaces, projects, columns, tickets, comments, board snapshot) | Subset; full surface implemented for Phases 1–4 |
-| §6.3 Board snapshot shape | Done |
-| §7.1 Ticket creation flow | Done — transactional, increments `ticket_seq`, watchers seeded |
-| §7.2 Ticket transition + WIP limit + optimistic locking | Done — admin can bypass via `?override_wip=true` |
-| §7.3 Optimistic locking via `If-Match` header | Done |
-| §7.4 Permission service | Done — workspace + project member checks |
-| §7.5 Activity log | Done — writes on every state change |
-| §11 Web client — board, drawer, filters, create modal | Done |
-| §11.3 Drag-and-drop with `@dnd-kit/core` | Done — optimistic UI + rollback on failure |
-| §11.5 Accessibility — keyboard DnD, focus rings, escape closes drawer | Basic |
-| §18 Tests — happy path, version conflict, WIP limit, admin bypass, activity log | Done — 15 vitest tests, hermetic SQLite |
-
-## Deviations from the TechSpec
-
-The spec describes a full enterprise architecture — five microservices, Kafka
-event bus, Redis pub/sub, Slack OAuth, Postgres, Helm/EKS deploys. To produce
-a runnable, end-to-end implementation in one pass, this build collapses those
-into a single Next.js 14 application, with the following intentional
-deviations. All can be reintroduced incrementally without changing the domain
-model or API contract.
-
-| Spec | This build | Reason / migration path |
-| --- | --- | --- |
-| Postgres 16 | SQLite (file) | Zero-setup for local dev. Schema is portable: switch `provider = "postgresql"` in `prisma/schema.prisma` and run `db push` against a Postgres URL. |
-| NestJS api-gateway + core-service | Next.js Route Handlers under `src/app/api/v1/...` | Same URL paths, same DTOs, same error envelope. Lift-and-shift to NestJS controllers when needed. |
-| Notification service (Go), Kafka | Not implemented | Phase 6 of the spec. The activity log table is in place; a consumer can be added later. |
-| Slack connector (Go) | Not implemented | Phase 5 of the spec. `slack_workspace_tokens`, `slack_channel_links`, signing-secret env var, and `slack_message_ts` field on `comments` are reserved. |
-| WebSocket realtime | Polling fallback (TanStack Query refetches every 15s) | Same client-visible behavior at higher latency. Add a Redis-backed WS gateway when introduced. |
-| NextAuth + JWT + magic link | Demo cookie session (`fb_user_id`) | Auth scaffolding is centralized in `src/lib/auth.ts` — swap in NextAuth without touching call sites. |
-| OpenTelemetry, Pino, Prometheus | `console.error` for unhandled errors only | Drop-in via the shared logger seam in `src/lib/api.ts`. |
-| Helm charts, Terraform, ECR, EKS, multi-env CD | A single CI workflow (lint, typecheck, test, build) | The CD layer in §23 of the spec is fully separable; CI gates are in place to support it. |
-
-Anything in `Out of scope for v1` (§21) is also out of scope here.
+---
 
 ## Project layout
 
 ```
 src/
 ├── app/
-│   ├── api/                    # REST routes — see TechSpec §6.2
+│   ├── api/
 │   │   ├── healthz, readyz
 │   │   └── v1/
-│   │       ├── auth/
-│   │       ├── workspaces/
-│   │       ├── projects/[id]/{board,columns,tickets}
-│   │       ├── columns/[id]
-│   │       └── tickets/[id]/{transitions,comments}
-│   ├── workspace/[wid]/
-│   │   ├── layout.tsx          # auth guard + sidebar
-│   │   ├── page.tsx            # project list
-│   │   └── projects/[pid]/page.tsx
-│   ├── globals.css
+│   │       ├── auth/           demo-login, me
+│   │       └── resume/         profiles, applications, pdf
+│   ├── profiles/               profile list, create, edit, tailor
+│   ├── applications/           application list, review diff
 │   ├── layout.tsx
-│   └── page.tsx                # landing + demo login
+│   └── page.tsx
 ├── components/
-│   ├── board/                  # Board, Column, TicketCard, Drawer, Filters, Modal
-│   ├── providers/QueryProvider.tsx
-│   ├── DemoLoginButton.tsx
-│   └── Sidebar.tsx
+│   ├── resume/                 Nav, ProfileEditor, TailorForm, ReviewClient
+│   └── providers/QueryProvider.tsx
 └── lib/
-    ├── activity.ts             # activity_events writes (§7.5)
-    ├── api.ts                  # JSON envelope, request IDs, zod parsing (§4.2)
-    ├── auth.ts                 # session resolution (§4.5)
-    ├── board.ts                # board snapshot loader (§6.3)
-    ├── db.ts                   # Prisma singleton
-    ├── errors.ts               # ApiError + status mapping (§4.2)
-    ├── fractional-index.ts     # rank helpers (§5.4)
-    ├── ids.ts                  # ULID-prefixed IDs (§4.1)
-    ├── permissions.ts          # PermissionService (§7.4)
-    └── tickets.ts              # createTicket, transitionTicket, updateTicket
+    ├── resume/
+    │   ├── claude.ts           Anthropic SDK integration
+    │   ├── diff.ts             word-level diff computation
+    │   ├── schema.ts           Zod schemas for locked/editable resume
+    │   ├── store.ts            profile + application CRUD
+    │   ├── pdfDocument.tsx     PDF renderer
+    │   ├── seedData.ts         sample profiles
+    │   └── templates/          TemplateA–E
+    ├── api.ts                  JSON envelope + request IDs
+    ├── auth.ts                 session cookie helper
+    ├── db.ts                   Prisma singleton
+    ├── errors.ts               ApiError
+    └── ids.ts                  ULID-prefixed IDs
 ```
 
-## Scripts
+---
 
-```
-pnpm dev          # next dev
+## Commands
+
+```bash
+pnpm dev          # start dev server at http://localhost:3000
 pnpm build        # prisma generate + next build
-pnpm test         # vitest (unit + integration against tmp SQLite)
+pnpm test         # vitest
 pnpm typecheck    # tsc --noEmit
 pnpm lint         # next lint
-pnpm db:push      # apply schema to SQLite
-pnpm db:seed      # idempotent demo seed
+pnpm db:push      # apply schema to DB
+pnpm db:seed      # seed sample profiles (idempotent)
 pnpm db:reset     # wipe + reseed
 ```
 
-## Tests
-
-`vitest` runs:
-
-- `src/lib/fractional-index.spec.ts` — 8 unit tests for the rank helper
-- `src/lib/tickets.spec.ts` — 7 integration tests against a hermetic SQLite
-  DB created via `prisma db push`. Covers creation, transition, WIP-limit
-  rejection, admin bypass, version conflict (TechSpec §18.2's required
-  scenarios for the ticket flow), and activity-log emission.
+---
 
 ## Deployment
 
-The repo ships with a GitHub Actions release pipeline that publishes a
-production-ready container image to **GitHub Container Registry (GHCR)** —
-zero secrets to configure, the built-in `GITHUB_TOKEN` is enough.
+The repo ships a GitHub Actions pipeline that publishes a production-ready multi-arch image to **GitHub Container Registry (GHCR)**.
 
-> **For step-by-step deployment instructions, see [`DEPLOYMENT.md`](./DEPLOYMENT.md).**
-> This section covers the pipeline architecture; the runbook covers the operator-facing actions.
+> **For step-by-step deployment instructions see [`DEPLOYMENT.md`](./DEPLOYMENT.md).**
 
 ### Pipeline
 
-| Workflow | File | Trigger | Result |
-| --- | --- | --- | --- |
-| CI | `.github/workflows/ci.yml` | every PR + push to `main` | lint, typecheck, vitest, `pnpm build`, **Docker build + container smoke test** (no push) |
-| Release | `.github/workflows/release.yml` | push to `main`, semver tag `v*.*.*`, manual dispatch | runs the test gate, then builds a multi-arch (`linux/amd64`,`linux/arm64`) image and pushes to `ghcr.io/<owner>/flow-board` with provenance + SBOM. Tags create a GitHub Release with auto-generated notes. |
+| Workflow | Trigger | Result |
+| --- | --- | --- |
+| CI (`.github/workflows/ci.yml`) | every PR + push to `main` | lint, typecheck, test, build, Docker smoke test |
+| Release (`.github/workflows/release.yml`) | push to `main`, semver tag, manual dispatch | multi-arch image (`linux/amd64`, `linux/arm64`) pushed to GHCR with provenance + SBOM |
 
-Image tags follow TechSpec §23.6:
-
-- `main` and `main-<sha7>` for every commit on `main`
-- `latest` for the default branch and for any semver tag
-- `v1.4.2`, `1.4.2`, `1.4`, `1` for tag pushes (major-only suppressed for `v0.x`)
-- `manual-<run_id>` for `workflow_dispatch`
-
-### Run anywhere `docker run` runs
+### Run with Docker
 
 ```bash
-docker run -d \
-  --name flowboard \
-  -p 3000:3000 \
-  -v flowboard-data:/data \
-  -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/wankhede04/flow-board:latest
-```
-
-Or with the supplied compose file:
-
-```bash
+# Compose (recommended)
 docker compose up -d
+
+# Or plain docker run
+docker run -d \
+  --name tailor-resume \
+  -p 3000:3000 \
+  -v tailor-data:/data \
+  -e DATABASE_URL="file:/data/tailor.db" \
+  -e JWT_SECRET="$(openssl rand -hex 32)" \
+  -e ANTHROPIC_API_KEY="sk-ant-..." \
+  ghcr.io/wankhede04/tailor-resume:latest
 ```
 
-The image:
-
-- runs as a non-root `nextjs` user (uid 1001)
-- listens on `:3000` and exposes `/api/healthz`, `/api/readyz`
-- persists data at `/data/flowboard.db` (SQLite); mount a volume there
-- runs `prisma db push` on every boot — idempotent and forward-compatible
-  per TechSpec §23.8
-- has a Docker `HEALTHCHECK` that hits `/api/healthz`
-
-### Required environment
-
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Defaults to `file:/data/flowboard.db`. Switch to a Postgres URL and update `provider` in `prisma/schema.prisma` for multi-replica deploys. |
-| `JWT_SECRET` | Required in production. Use `openssl rand -hex 32`. |
+The image runs as a non-root user, persists SQLite at `/data/tailor.db`, runs `prisma db push` on every boot, and exposes `/api/healthz` + `/api/readyz`.
 
 ### Cutting a release
 
@@ -298,49 +195,4 @@ git tag -a v0.1.0 -m "v0.1.0"
 git push origin v0.1.0
 ```
 
-The Release workflow then:
-
-1. Runs the test gate (lint, typecheck, vitest)
-2. Builds and signs a multi-arch image, pushes to GHCR with SBOM + provenance attestation
-3. Creates a GitHub Release with auto-generated changelog
-
-### Migrating to TechSpec §23 (ECR + EKS)
-
-The Release workflow is a near-drop-in for the spec's `_build-and-push.yml`.
-To switch from GHCR to ECR + EKS:
-
-1. Add an OIDC role + secrets per TechSpec §23.4
-2. Replace the `docker/login-action` step with `aws-actions/configure-aws-credentials` + `amazon-ecr-login`
-3. Add a `migrate` job that runs `helm upgrade --install flowboard-migrate ...` between the publish and deploy steps (§23.7)
-
-The `Dockerfile` and `docker-compose.yml` are infra-agnostic and unchanged.
-
-## API examples
-
-```bash
-# Sign in (sets fb_user_id cookie)
-curl -i -X POST http://localhost:3000/api/v1/auth/demo-login
-
-# List workspaces for current user
-curl --cookie "fb_user_id=<id>" http://localhost:3000/api/v1/workspaces/me
-
-# Board snapshot (TechSpec §6.3 shape)
-curl --cookie "fb_user_id=<id>" \
-  http://localhost:3000/api/v1/projects/<projectId>/board
-
-# Move a ticket (optimistic locking via If-Match)
-curl -X POST http://localhost:3000/api/v1/tickets/<ticketId>/transitions \
-  -H "Content-Type: application/json" \
-  -H "If-Match: 1" \
-  --cookie "fb_user_id=<id>" \
-  -d '{"targetColumnId":"<colId>","targetIndex":0}'
-```
-
-Errors follow the spec's envelope:
-
-```json
-{
-  "error": { "code": "WIP_LIMIT_EXCEEDED", "message": "...", "details": { "wip_limit": 3 } },
-  "request_id": "req_01HXYZ..."
-}
-```
+The Release workflow runs the test gate, builds the image, and creates a GitHub Release with auto-generated notes.
