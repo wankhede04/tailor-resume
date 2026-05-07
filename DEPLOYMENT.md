@@ -1,6 +1,6 @@
 # Deployment Runbook
 
-Step-by-step guide for deploying FlowBoard to production. The pipeline is
+Step-by-step guide for deploying Tailor Resume to production. The pipeline is
 already wired up — these steps are the operator-facing actions to take.
 
 For pipeline architecture details, see [README.md → Deployment](./README.md#deployment).
@@ -15,6 +15,7 @@ For pipeline architecture details, see [README.md → Deployment](./README.md#de
   or a managed container runtime all work.
 - A randomly generated `JWT_SECRET` — `openssl rand -hex 32` — kept out
   of the repo.
+- An `ANTHROPIC_API_KEY` for Claude resume tailoring.
 
 ---
 
@@ -36,7 +37,7 @@ feature branch lands on `main`, no image is built.
 
 After the Release workflow turns green:
 
-1. Open `https://github.com/wankhede04/flow-board/pkgs/container/flow-board`.
+1. Open `https://github.com/wankhede04/tailor-resume/pkgs/container/tailor-resume`.
 2. You should see the package with these tags: `main`, `main-<sha>`, `latest`.
 3. The package is **private by default** on first publish. To deploy
    without a PAT, change visibility:
@@ -76,19 +77,20 @@ Pick one path. All paths use the same image.
 On the host:
 
 ```bash
-mkdir -p /opt/flowboard && cd /opt/flowboard
-curl -fsSL https://raw.githubusercontent.com/wankhede04/flow-board/main/docker-compose.yml -o docker-compose.yml
+mkdir -p /opt/tailor-resume && cd /opt/tailor-resume
+curl -fsSL https://raw.githubusercontent.com/wankhede04/tailor-resume/main/docker-compose.yml -o docker-compose.yml
 
 # One-time: write env file (NOT committed anywhere)
 cat > .env <<EOF
 JWT_SECRET=$(openssl rand -hex 32)
-FLOWBOARD_IMAGE=ghcr.io/wankhede04/flow-board:0.1.0
-FLOWBOARD_PORT=3000
+ANTHROPIC_API_KEY=sk-ant-...
+TAILOR_IMAGE=ghcr.io/wankhede04/tailor-resume:0.1.0
+TAILOR_PORT=3000
 EOF
 
 docker compose pull
 docker compose up -d
-docker compose logs -f flowboard          # tail until "Ready in" appears
+docker compose logs -f tailor-resume          # tail until "Ready in" appears
 
 # Smoke test
 curl -fsS http://localhost:3000/api/healthz
@@ -99,7 +101,7 @@ Reverse proxy (nginx/Caddy/Traefik) terminates TLS and forwards to
 `localhost:3000`. Example Caddyfile:
 
 ```
-flowboard.example.com {
+tailor.example.com {
   reverse_proxy localhost:3000
 }
 ```
@@ -108,12 +110,13 @@ flowboard.example.com {
 
 ```bash
 docker run -d \
-  --name flowboard \
+  --name tailor-resume \
   --restart unless-stopped \
   -p 3000:3000 \
-  -v flowboard-data:/data \
+  -v tailor-data:/data \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
-  ghcr.io/wankhede04/flow-board:0.1.0
+  -e ANTHROPIC_API_KEY="sk-ant-..." \
+  ghcr.io/wankhede04/tailor-resume:0.1.0
 ```
 
 ### 4c. Kubernetes
@@ -124,21 +127,22 @@ A minimal manifest:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flowboard
+  name: tailor-resume
 spec:
   replicas: 1                          # SQLite — single writer only
   strategy: { type: Recreate }         # rolling-update conflicts with the volume
-  selector: { matchLabels: { app: flowboard } }
+  selector: { matchLabels: { app: tailor-resume } }
   template:
-    metadata: { labels: { app: flowboard } }
+    metadata: { labels: { app: tailor-resume } }
     spec:
       containers:
-        - name: flowboard
-          image: ghcr.io/wankhede04/flow-board:0.1.0
+        - name: tailor-resume
+          image: ghcr.io/wankhede04/tailor-resume:0.1.0
           ports: [{ containerPort: 3000 }]
           env:
-            - { name: JWT_SECRET, valueFrom: { secretKeyRef: { name: flowboard, key: jwt-secret } } }
-            - { name: DATABASE_URL, value: file:/data/flowboard.db }
+            - { name: JWT_SECRET, valueFrom: { secretKeyRef: { name: tailor-resume, key: jwt-secret } } }
+            - { name: ANTHROPIC_API_KEY, valueFrom: { secretKeyRef: { name: tailor-resume, key: anthropic-api-key } } }
+            - { name: DATABASE_URL, value: file:/data/tailor.db }
           volumeMounts:
             - { name: data, mountPath: /data }
           readinessProbe:
@@ -149,13 +153,13 @@ spec:
             initialDelaySeconds: 15
       volumes:
         - name: data
-          persistentVolumeClaim: { claimName: flowboard-data }
+          persistentVolumeClaim: { claimName: tailor-data }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: flowboard }
+metadata: { name: tailor-resume }
 spec:
-  selector: { app: flowboard }
+  selector: { app: tailor-resume }
   ports: [{ port: 80, targetPort: 3000 }]
 ```
 
@@ -185,7 +189,7 @@ curl -fsS -c "$COOKIE" -X POST https://your-host/api/v1/auth/demo-login
 curl -fsS -b "$COOKIE" https://your-host/api/v1/auth/me
 ```
 
-If any step returns non-200, check `docker logs flowboard` (or pod logs)
+If any step returns non-200, check `docker logs tailor-resume` (or pod logs)
 for stack traces. The Prisma `db push` runs on every boot — first-boot
 logs will show schema application.
 
@@ -199,8 +203,8 @@ backup-friendly storage, switch to Postgres:
 1. Edit `prisma/schema.prisma`: change `provider = "sqlite"` to
    `provider = "postgresql"`.
 2. Commit, tag a new release, and let the pipeline rebuild the image.
-3. On the host, set `DATABASE_URL=postgresql://user:pass@host:5432/flowboard`
-   and remove the `flowboard-data` volume (the entrypoint runs `prisma
+3. On the host, set `DATABASE_URL=postgresql://user:pass@host:5432/tailor`
+   and remove the `tailor-data` volume (the entrypoint runs `prisma
    db push` on first boot and creates the schema).
 
 ---
@@ -214,25 +218,24 @@ git push origin v0.1.1
 # Wait for the Release workflow to publish the image.
 
 # On the host:
-sed -i 's|flow-board:0.1.0|flow-board:0.1.1|' .env   # or update FLOWBOARD_IMAGE
+sed -i 's|tailor-resume:0.1.0|tailor-resume:0.1.1|' .env
 docker compose pull
 docker compose up -d
 ```
 
 The entrypoint reapplies the schema (`prisma db push`) on every boot,
-which is forward-compatible per TechSpec §23.8 — additive migrations
-work transparently. Destructive migrations require manual planning.
+which is forward-compatible — additive migrations work transparently.
+Destructive migrations require manual planning.
 
 ---
 
 ## Step 8 — Backups
 
-SQLite lives in the `flowboard-data` volume at `/data/flowboard.db`. To
-back up:
+SQLite lives in the `tailor-data` volume at `/data/tailor.db`. To back up:
 
 ```bash
-docker compose exec flowboard sqlite3 /data/flowboard.db ".backup /data/backup.db"
-docker cp flowboard:/data/backup.db ./flowboard-$(date +%F).db
+docker compose exec tailor-resume sqlite3 /data/tailor.db ".backup /data/backup.db"
+docker cp tailor-resume:/data/backup.db ./tailor-$(date +%F).db
 ```
 
 Schedule via cron and ship the file off-host.
@@ -244,7 +247,7 @@ Schedule via cron and ship the file off-host.
 If a new release misbehaves, redeploy the previous tag:
 
 ```bash
-sed -i 's|flow-board:0.1.1|flow-board:0.1.0|' .env
+sed -i 's|tailor-resume:0.1.1|tailor-resume:0.1.0|' .env
 docker compose pull
 docker compose up -d
 ```
@@ -262,7 +265,8 @@ Step 8 before downgrading.
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `denied: permission_denied` on `docker pull` | GHCR package is private | Make package public OR `docker login ghcr.io -u <user> -p <PAT>` (PAT needs `read:packages`) |
-| Container restarts in a loop, logs `prisma db push` errors | DB volume mounted from a previous incompatible schema | Restore from backup, or wipe `flowboard-data` if non-prod |
-| 502 / connection refused at the proxy | Container booting; `prisma db push` runs first | Wait ~10s; check `docker logs flowboard` for `Ready in` line |
+| Container restarts in a loop, logs `prisma db push` errors | DB volume mounted from a previous incompatible schema | Restore from backup, or wipe `tailor-data` if non-prod |
+| 502 / connection refused at the proxy | Container booting; `prisma db push` runs first | Wait ~10s; check `docker logs tailor-resume` for `Ready in` line |
 | "Database is locked" under load | SQLite single-writer limit | Switch to Postgres (Step 6) |
-| Image pulls succeed but `cosign verify` fails | Verifying with the wrong identity | The image is signed via GitHub OIDC; verify with `cosign verify --certificate-identity-regexp 'https://github.com/wankhede04/flow-board/.github/workflows/release.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/wankhede04/flow-board:<tag>` |
+| Claude tailoring returns errors | Missing or invalid `ANTHROPIC_API_KEY` | Check the env var is set correctly |
+| Image pulls succeed but `cosign verify` fails | Verifying with the wrong identity | The image is signed via GitHub OIDC; verify with `cosign verify --certificate-identity-regexp 'https://github.com/wankhede04/tailor-resume/.github/workflows/release.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/wankhede04/tailor-resume:<tag>` |

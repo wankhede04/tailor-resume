@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => ({}))) as { email?: string };
-    const email = body.email ?? process.env.SEED_USER_EMAIL ?? 'demo@flowboard.app';
+    const email = body.email ?? process.env.SEED_USER_EMAIL ?? 'demo@tailor.app';
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new ApiError(
