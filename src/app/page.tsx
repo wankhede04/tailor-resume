@@ -74,13 +74,6 @@ export default async function HomePage() {
           </ul>
         )}
 
-        <div className="mt-12 rounded-md border border-bg-border bg-bg-surface px-4 py-3 text-xs text-text-muted">
-          Looking for FlowBoard? It&rsquo;s still here at{' '}
-          <Link className="text-text-secondary hover:text-text-primary" href="/workspace">
-            /workspace
-          </Link>
-          .
-        </div>
       </div>
     </main>
   );
