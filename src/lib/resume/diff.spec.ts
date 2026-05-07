@@ -4,7 +4,10 @@ import type { EditableResume } from './schema';
 
 const base: EditableResume = {
   summary: 'Backend engineer focused on payments.',
-  skills: ['Go', 'Python', 'Postgres'],
+  skills: [
+    { category: 'Programming', items: ['Go', 'Python'] },
+    { category: 'Databases', items: ['Postgres'] },
+  ],
   experience: [
     {
       id: 'exp-1',
@@ -48,14 +51,18 @@ describe('computeDiff', () => {
   });
 
   it('detects added and removed skills', () => {
-    const after: EditableResume = { ...base, skills: ['Go', 'Postgres', 'Kafka'] };
+    const after: EditableResume = {
+      ...base,
+      skills: [
+        { category: 'Programming', items: ['Go'] },           // Python removed
+        { category: 'Databases', items: ['Postgres', 'Redis'] }, // Redis added
+      ],
+    };
     const diff = computeDiff(base, after);
-    // index 0: Go -> Go (unchanged)
-    // index 1: Python -> Postgres (modified)
-    // index 2: Postgres -> Kafka (modified)
-    expect(diff.skills[0].kind).toBe('unchanged');
+    // Programming: Go, Python -> Go (modified)
+    // Databases: Postgres -> Postgres, Redis (modified)
+    expect(diff.skills[0].kind).toBe('modified');
     expect(diff.skills[1].kind).toBe('modified');
-    expect(diff.skills[2].kind).toBe('modified');
   });
 
   it('handles bullet additions and removals', () => {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { SkillCategory } from '@/lib/resume/schema';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -178,15 +179,35 @@ function buildSkillsText(map: Record<string, string>): string {
     .join('\n');
 }
 
-function splitSkills(text: string): string[] {
-  return text.split('\n').map((s) => s.trim()).filter(Boolean);
+function splitSkills(text: string): SkillCategory[] {
+  return text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const idx = line.indexOf(':');
+      if (idx === -1) return [];
+      const category = line.slice(0, idx).trim();
+      const items = line.slice(idx + 1).split(',').map((s) => s.trim()).filter(Boolean);
+      return category ? [{ category, items }] : [];
+    });
 }
 
 function extractSkillsText(editable: unknown): string {
   if (!editable || typeof editable !== 'object') return '';
   const skills = (editable as Record<string, unknown>).skills;
   if (!Array.isArray(skills)) return '';
-  return (skills as unknown[]).map(str).join('\n');
+  return (skills as unknown[])
+    .flatMap((s) => {
+      if (s && typeof s === 'object') {
+        const sk = s as { category?: string; items?: unknown[] };
+        if (sk.category && Array.isArray(sk.items)) {
+          return [`${sk.category}: ${sk.items.map((i) => (typeof i === 'string' ? i : '')).filter(Boolean).join(', ')}`];
+        }
+      }
+      return [];
+    })
+    .join('\n');
 }
 
 // ---- Shared UI helpers ---------------------------------------------------

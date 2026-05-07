@@ -106,12 +106,6 @@ function buildContactItems(c: LockedResume['contact']): ContactItem[] {
   return items;
 }
 
-function parseSkillLine(line: string): { category: string | null; items: string } {
-  const idx = line.indexOf(':');
-  if (idx === -1) return { category: null, items: line.trim() };
-  return { category: line.slice(0, idx).trim(), items: line.slice(idx + 1).trim() };
-}
-
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <View>
@@ -168,15 +162,12 @@ export function TemplateD({ locked, editable }: ResumePdfProps) {
         {editable.skills.length > 0 ? (
           <>
             <SectionTitle>Core Competencies</SectionTitle>
-            {editable.skills.map((skill, i) => {
-              const { category, items } = parseSkillLine(skill);
-              return (
-                <Text key={i} style={s.skillLine}>
-                  {category ? <Text style={{ fontWeight: 700 }}>{category}: </Text> : null}
-                  <Text>{items}</Text>
-                </Text>
-              );
-            })}
+            {editable.skills.map((skill, i) => (
+              <Text key={i} style={s.skillLine}>
+                <Text style={{ fontWeight: 700 }}>{skill.category}: </Text>
+                <Text>{skill.items.join(', ')}</Text>
+              </Text>
+            ))}
           </>
         ) : null}
 

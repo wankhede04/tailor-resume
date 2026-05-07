@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useMemo, useState } from 'react';
-import type { EditableProject, EditableResume, LockedResume } from '@/lib/resume/schema';
+import type { EditableProject, EditableResume, LockedResume, SkillCategory } from '@/lib/resume/schema';
 import { computeDiff, type FieldDiff, type ResumeDiff } from '@/lib/resume/diff';
 
 interface Props {
@@ -29,6 +29,20 @@ function parseSkillLine(line: string): { category: string | null; items: string 
   const idx = line.indexOf(':');
   if (idx === -1) return { category: null, items: line.trim() };
   return { category: line.slice(0, idx).trim(), items: line.slice(idx + 1).trim() };
+}
+
+function parseSkillsText(text: string): SkillCategory[] {
+  return text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const idx = line.indexOf(':');
+      if (idx === -1) return [];
+      const category = line.slice(0, idx).trim();
+      const items = line.slice(idx + 1).split(',').map((s) => s.trim()).filter(Boolean);
+      return category ? [{ category, items }] : [];
+    });
 }
 
 function initValues(diff: ResumeDiff): FieldValues {
@@ -60,7 +74,7 @@ function buildEditable(
   const afterProjects = new Map(tailored.projects.map((p) => [p.id, p]));
   return {
     summary: get(diff.summary),
-    skills: splitLines(values.get(SKILLS_KEY) ?? ''),
+    skills: parseSkillsText(values.get(SKILLS_KEY) ?? ''),
     experience: diff.experience.map((e) => ({
       id: e.id,
       bullets: splitLines(values.get(expBulletsKey(e.id)) ?? ''),
@@ -165,14 +179,7 @@ function generateLatex(locked: LockedResume, editable: EditableResume): string {
     lines.push(String.raw`\ressection{Technical Skills}`);
     lines.push(String.raw`\begin{itemize}[leftmargin=0pt, label={}, itemsep=1pt, parsep=0pt]`);
     for (const skill of editable.skills) {
-      const idx = skill.indexOf(':');
-      if (idx !== -1) {
-        const cat = skill.slice(0, idx).trim();
-        const items = skill.slice(idx + 1).trim();
-        lines.push(`  \\item \\textbf{${esc(cat)}:} ${esc(items)}`);
-      } else {
-        lines.push(`  \\item ${esc(skill)}`);
-      }
+      lines.push(`  \\item \\textbf{${esc(skill.category)}:} ${esc(skill.items.join(', '))}`);
     }
     lines.push(String.raw`\end{itemize}`);
   }

@@ -65,10 +65,10 @@ export default async function ProfilePage({ params }: { params: { id: string } }
             <div className="flex flex-wrap gap-1">
               {profile.editable.skills.map((s) => (
                 <span
-                  key={s}
+                  key={s.category}
                   className="rounded-full bg-bg-surface px-2 py-0.5 text-xs text-text-secondary"
                 >
-                  {s}
+                  <strong>{s.category}:</strong> {s.items.join(', ')}
                 </span>
               ))}
             </div>

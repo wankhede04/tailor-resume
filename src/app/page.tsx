@@ -54,17 +54,17 @@ export default async function HomePage() {
                     {p.editable.summary}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-1">
-                    {p.editable.skills.slice(0, 6).map((s) => (
+                    {p.editable.skills.flatMap((s) => s.items).slice(0, 6).map((item) => (
                       <span
-                        key={s}
+                        key={item}
                         className="rounded-full bg-bg-surface px-2 py-0.5 text-xs text-text-secondary"
                       >
-                        {s}
+                        {item}
                       </span>
                     ))}
-                    {p.editable.skills.length > 6 ? (
+                    {p.editable.skills.flatMap((s) => s.items).length > 6 ? (
                       <span className="rounded-full px-2 py-0.5 text-xs text-text-muted">
-                        +{p.editable.skills.length - 6}
+                        +{p.editable.skills.flatMap((s) => s.items).length - 6}
                       </span>
                     ) : null}
                   </div>

@@ -26,7 +26,7 @@ CRITICAL RULES:
 3. The candidate's experience IDs map editable bullets to locked job titles/companies. Keep the same ids and roughly the same number of bullets per role (within 1).
 4. Do not invent technologies, certifications, or accomplishments that aren't supported by the existing bullets. You may rephrase, reorder, sharpen verbs, and emphasize JD-relevant aspects of the SAME work.
 5. Keep bullets concise (one line each, ideally under 22 words). Lead with strong verbs. Quantify where the original did.
-6. Skills array: reorder and trim to highlight JD-relevant items. You may drop irrelevant skills, but do NOT add new skills the candidate hasn't shown.
+6. Skills: the skills field is an array of { category, items[] } objects. Preserve every category label exactly as given. Within each category, reorder and trim items to highlight JD-relevant ones. You may drop irrelevant items but do NOT add new items or invent new categories.
 7. Summary: rewrite in first-third-person (no "I"), 2-3 sentences, focused on JD-relevant strengths the candidate already demonstrates.
 8. Output MUST be a valid editable resume JSON. Use the submit_tailored_resume tool to return your result.
 9. WRITING STYLE — avoid AI writing patterns in every text field:
@@ -63,7 +63,17 @@ const TOOL_INPUT_SCHEMA = {
   type: 'object',
   properties: {
     summary: { type: 'string' },
-    skills: { type: 'array', items: { type: 'string' } },
+    skills: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          category: { type: 'string' },
+          items: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['category', 'items'],
+      },
+    },
     experience: {
       type: 'array',
       items: {
@@ -186,7 +196,7 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
     `CANDIDATE:`,
     `Name: ${input.locked.name}`,
     `Summary: ${input.editable.summary}`,
-    `Skills: ${input.editable.skills.join(', ')}`,
+    `Skills: ${input.editable.skills.map((s) => `${s.category}: ${s.items.join(', ')}`).join('; ')}`,
     `Experience:`,
     ...experienceLines,
     ``,
