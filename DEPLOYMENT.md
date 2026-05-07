@@ -114,8 +114,10 @@ docker run -d \
   --restart unless-stopped \
   -p 3000:3000 \
   -v tailor-data:/data \
+  -e DATABASE_URL="file:/data/tailor.db" \
   -e JWT_SECRET="$(openssl rand -hex 32)" \
   -e ANTHROPIC_API_KEY="sk-ant-..." \
+  -e CLAUDE_MODEL="claude-sonnet-4-6" \
   ghcr.io/wankhede04/tailor-resume:0.1.0
 ```
 
@@ -178,15 +180,17 @@ mounted EFS volume at `/data`. Health check path: `/api/healthz`.
 
 ```bash
 # 1. Health probes return 200
-curl -fsS https://your-host/api/healthz   # {"status":"ok"}
-curl -fsS https://your-host/api/readyz    # {"status":"ready","checks":{"db":"ok"}}
+curl -fsS https://your-host/api/healthz   # {"data":{"status":"ok"},...}
+curl -fsS https://your-host/api/readyz    # {"data":{"status":"ready","checks":{"db":"ok"}},...}
 
-# 2. Demo login works (sanity check the session + DB write path)
-COOKIE=$(mktemp)
-curl -fsS -c "$COOKIE" -X POST https://your-host/api/v1/auth/demo-login
+# 2. Profiles API responds (DB is up and schema was applied)
+curl -fsS https://your-host/api/v1/resume/profiles   # {"data":[],...}
 
-# 3. Authenticated read works
-curl -fsS -b "$COOKIE" https://your-host/api/v1/auth/me
+# 3. Seed sample profiles (optional, one-time)
+docker compose exec tailor-resume node -e "
+  const { execSync } = require('child_process');
+  execSync('node prisma/seed.js', { stdio: 'inherit' });
+" 2>/dev/null || echo "Seed script not bundled — run pnpm db:seed locally and restore the DB."
 ```
 
 If any step returns non-200, check `docker logs tailor-resume` (or pod logs)
