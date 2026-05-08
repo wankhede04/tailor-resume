@@ -6,218 +6,108 @@ import type { Resume } from './schema';
 
 export const SAMPLE_PROFILES: Resume[] = [
   {
-    profileId: 'anurag-fullstack',
+    profileId: 'vijay-backend',
     locked: {
-      name: 'Anurag Sharma',
+      name: 'Vijay Wankhede',
       contact: {
-        email: 'anurag@example.com',
-        phone: '+91 98000 11111',
+        email: 'vijaywankhede959595@gmail.com ',
+        phone: '+91 88396 57426',
         location: 'Bengaluru, IN',
-        linkedin: 'linkedin.com/in/anurag',
-        github: 'github.com/anurag',
+        linkedin: 'linkedin.com/in/vijay-wankhede-661765306',
+        github: 'github.com/wankhede04',
         website: '',
       },
       education: [
         {
-          institution: 'IIT Bombay',
-          degree: 'B.Tech',
+          institution: 'Institute of Engineering and Technology',
+          degree: 'B.Eng',
           field: 'Computer Science',
-          startYear: '2017',
-          endYear: '2021',
-          gpa: '8.6',
+          startYear: '2015',
+          endYear: '2019',
+          gpa: '7.5',
         },
       ],
       experienceFacts: [
         {
-          id: 'exp-acme',
-          title: 'Senior Software Engineer',
-          company: 'Acme Corp',
+          id: 'exp-fetch',
+          title: 'Lead Backend Engineer ',
+          company: 'Fetch.AI',
           location: 'Remote',
-          startDate: '2023-04',
+          startDate: 'Apr 2023',
           endDate: 'Present',
         },
         {
-          id: 'exp-globex',
-          title: 'Software Engineer',
-          company: 'Globex',
-          location: 'Bengaluru, IN',
-          startDate: '2021-07',
-          endDate: '2023-03',
+          id: 'exp-instabit',
+          title: 'Senior Backend Developer',
+          company: 'Instabit',
+          location: 'Remote',
+          startDate: 'Feb 2021',
+          endDate: 'Mar 2023',
         },
+        {
+          id: 'exp-deqode',
+          title: 'Software Developer ',
+          company: 'Deqode',
+          location: 'India',
+          startDate: 'Jul 2019',
+          endDate: 'Jan 2021',
+        }
       ],
     },
     editable: {
       summary:
-        'Full-stack engineer with 4+ years building production web platforms across React, Node.js, and Postgres. Comfortable owning features end-to-end from API design through UI polish.',
+        'Accomplished Backend and Web3 Engineer with 7+ years of hands-on experience specializing in Node.js, TypeScript, blockchain systems, and scalable backend architecture. Proven track record building production-ready applications, SDKs, developer tooling, and on-chain infrastructure across Ethereum and Layer-2 networks. Known for a security-first mindset, strong ownership, and focus on delivering clean, well-tested, high-impact software. Passionate about building tools that empower developers and pushing innovation in the blockchain ecosystem.',
       skills: [
-        { category: 'Programming', items: ['TypeScript', 'JavaScript'] },
-        { category: 'Frontend', items: ['React', 'Next.js'] },
-        { category: 'Backend & Distributed Systems', items: ['Node.js'] },
-        { category: 'Databases', items: ['PostgreSQL', 'Redis'] },
-        { category: 'Cloud, Infra & DevOps', items: ['Docker', 'AWS'] },
+        { category: 'Expertise', items: ['NodeJS', 'TypeScript/JavaScript', 'NestJS', 'Express'] },
+        { category: 'Web3 & Blockchain', items: ['Ethereum', 'Solidity', 'Polygon', 'Arbitrum', 'EVM Chains', 'Layer2', 'Smart Contracts'] },
+        { category: 'Developer Tooling & SDKs', items: ['ethers.js', 'Viem', 'wagmi', 'Web3 wallet integrations', 'custom SDK architecture'] },
+        { category: 'Backend & Distributed Systems', items: ['Microservices', 'event-driven systems', 'secure backend services'] },
+        { category: 'Databases', items: ['PostgreSQL', 'MongoDB', 'Redis'] },
+        { category: 'Cloud, Infra & DevOps', items: ['Docker','AWS (EC2, ECS Fargate, S3, IAM)', 'Google Cloud', 'CI/CD'] },
+        { category: 'Programming', items: ['Rust', 'Go', 'Python'] },
+        { category: 'Frontend', items: ['ReactJS', 'Redux', 'Tailwind CSS'] },
+        { category: 'Monitoring & Observability', items: ['Grafana', 'Prometheus', 'Envoy load balancing'] },
+        { category: 'Workstyle & Practices', items: ['Agile', 'Test-driven development', 'Architecture documentation', 'Code reviews'] },
       ],
       experience: [
         {
-          id: 'exp-acme',
+          id: 'exp-fetch',
           bullets: [
-            'Led migration of monolithic API to modular service boundaries, cutting median p95 latency from 480ms to 180ms.',
-            'Designed and shipped a real-time notifications system used by 30k weekly active users.',
-            'Mentored two junior engineers; established the team\'s code review and on-call playbooks.',
+            'Contributed as a Node.js and TypeScript expert, building secure and scalable backend services powering blockchain and on-chain application logic.',
+'Designed and developed internal SDKs and modular developer tooling enabling seamless wallet connections, transaction management, event handling, and Web3 interactions.',
+'Integrated and maintained systems using ethers.js, viem, wagmi, and signing workflows compatible with Ethereum and Layer-2 environments including Arbitrum.',
+'Migrated infrastructure to AWS ECS Fargate, increasing performance by 50% and reducing infrastructure cost by 20%, while improving deployment automation.',
+'Shifted high-load APIs to Node.js for performance-critical paths, improving latency by 30% and enabling scalability under growing traffic.',
+'Improved testing culture by implementing TDD pipelines, integration testing frameworks and code quality gates, increasing module reliability by >90% coverage.',
+'Practised open communication, async documentation, and RFC-style technical proposals for architecture and product planning.',
+'Identified opportunities beyond assigned scope, reducing cloud waste, building internal automation tools, and improving overall engineering efficiency.'
           ],
         },
         {
-          id: 'exp-globex',
+          id: 'exp-instabit',
           bullets: [
-            'Built core checkout flow handling $4M monthly GMV with three payment providers.',
-            'Reduced frontend bundle size 38% through route-based code splitting and dependency audits.',
-            'Owned the analytics pipeline ingest path on Kafka + ClickHouse.',
+            'Led engineering execution for three blockchain products, overseeing requirements, design, implementation, deployment, and developer enablement.',
+'Designed and shipped API frameworks + SDKs with intuitive, developer-friendly abstractions for blockchain contract interactions and transaction processing.',
+'Built infrastructure for relayer logic, blockchain event indexing, off-chain verification, and secure transaction batching.',
+'Improved operational cost efficiency by 40% through API restructuring and infrastructure optimization.',
+'Created custom blockchain architecture applied across client use cases, improving reliability and smart contract interoperability.',
+'Managed and mentored a team of 5 developers, performing architecture reviews, technical planning, and sprint execution.',
+'Set up and managed AWS + GCP production environments, load balancing, monitoring, and automated deployment pipelines.',  
+'Collaborated across teams to deliver secure systems using best practices in authentication, signing flows, and key management.'
           ],
         },
-      ],
-      projects: [
         {
-          id: 'proj-meshboard',
-          name: 'MeshBoard',
-          description: 'Open-source collaborative whiteboard',
+          id: 'exp-deqode',
           bullets: [
-            'CRDT-based sync with sub-50ms cursor latency over WebRTC.',
-            'Reached 1.2k GitHub stars within six months of launch.',
-          ],
-          techStack: ['TypeScript', 'WebRTC', 'Yjs'],
-        },
-      ],
-    },
-  },
-  {
-    profileId: 'shreya-backend',
-    locked: {
-      name: 'Shreya Patil',
-      contact: {
-        email: 'shreya@example.com',
-        phone: '+91 98000 22222',
-        location: 'Pune, IN',
-        linkedin: 'linkedin.com/in/shreya',
-        github: 'github.com/shreya',
-        website: '',
-      },
-      education: [
-        {
-          institution: 'COEP Pune',
-          degree: 'B.E.',
-          field: 'Information Technology',
-          startYear: '2018',
-          endYear: '2022',
-          gpa: '9.1',
-        },
-      ],
-      experienceFacts: [
-        {
-          id: 'exp-payflow',
-          title: 'Backend Engineer',
-          company: 'PayFlow',
-          location: 'Pune, IN',
-          startDate: '2022-08',
-          endDate: 'Present',
-        },
-      ],
-    },
-    editable: {
-      summary:
-        'Backend engineer focused on payments infrastructure, distributed systems, and reliability. Strong with Go, Python, and event-driven architectures.',
-      skills: [
-        { category: 'Programming', items: ['Go', 'Python'] },
-        { category: 'Backend & Distributed Systems', items: ['gRPC', 'Kafka'] },
-        { category: 'Databases', items: ['Postgres'] },
-        { category: 'Cloud, Infra & DevOps', items: ['Kubernetes', 'Terraform'] },
-      ],
-      experience: [
-        {
-          id: 'exp-payflow',
-          bullets: [
-            'Owned the ledger service responsible for $200M+ annual transaction volume.',
-            'Implemented idempotent retry semantics that eliminated a class of double-charge incidents.',
-            'Drove an SLO program and reduced ledger write error budget burn by 60%.',
+            'Led the backend architecture and development of Deqode’s core blockchain and decentralized applications, driving innovation in decentralized finance (DeFi) and Web3.',
+            'Architected and implemented scalable backend systems for the Deqode blockchain, including smart contract deployment, transaction processing, and state management.',
+            'Developed and maintained the Deqode SDK, a comprehensive toolkit for building decentralized applications on the Deqode blockchain.',
+            'Collaborated with the engineering team to design and implement new features and functionality for the Deqode blockchain and decentralized applications.',
+            'Worked closely with the product team to understand user needs and requirements, and to design and implement new features and functionality for the Deqode blockchain and decentralized applications.',
           ],
         },
       ],
       projects: [],
     },
-  },
-  {
-    profileId: 'shivani-frontend',
-    locked: {
-      name: 'Shivani Rao',
-      contact: {
-        email: 'shivani@example.com',
-        phone: '+91 98000 33333',
-        location: 'Hyderabad, IN',
-        linkedin: 'linkedin.com/in/shivani',
-        github: 'github.com/shivani',
-        website: 'shivani.dev',
-      },
-      education: [
-        {
-          institution: 'IIIT Hyderabad',
-          degree: 'B.Tech',
-          field: 'Computer Science',
-          startYear: '2017',
-          endYear: '2021',
-          gpa: '8.4',
-        },
-      ],
-      experienceFacts: [
-        {
-          id: 'exp-luma',
-          title: 'Frontend Engineer',
-          company: 'Luma',
-          location: 'Remote',
-          startDate: '2023-01',
-          endDate: 'Present',
-        },
-        {
-          id: 'exp-indigo',
-          title: 'UI Engineer',
-          company: 'Indigo Labs',
-          location: 'Hyderabad, IN',
-          startDate: '2021-08',
-          endDate: '2022-12',
-        },
-      ],
-    },
-    editable: {
-      summary:
-        'Frontend engineer with a strong design sensibility. Shipped polished, accessible interfaces in React and Svelte for B2B SaaS and consumer apps.',
-      skills: [
-        { category: 'Programming', items: ['TypeScript', 'JavaScript'] },
-        { category: 'Frontend', items: ['React', 'Svelte', 'Tailwind CSS', 'Framer Motion', 'Storybook'] },
-        { category: 'Developer Tooling & SDKs', items: ['Figma'] },
-      ],
-      experience: [
-        {
-          id: 'exp-luma',
-          bullets: [
-            'Rebuilt the public-facing event pages, lifting conversion-to-RSVP by 14% in A/B test.',
-            'Owned the design system component library used by all product surfaces.',
-            'Led accessibility remediation to reach WCAG 2.1 AA on the booking flow.',
-          ],
-        },
-        {
-          id: 'exp-indigo',
-          bullets: [
-            'Built the reporting dashboard with virtualized tables handling 100k+ rows.',
-            'Migrated the marketing site from Gatsby to Next.js, cutting build times by 70%.',
-          ],
-        },
-      ],
-      projects: [
-        {
-          id: 'proj-paletteforge',
-          name: 'PaletteForge',
-          description: 'Color system generator for design teams',
-          bullets: ['Featured on Product Hunt; 3k+ weekly visitors at peak.'],
-          techStack: ['Svelte', 'TypeScript'],
-        },
-      ],
-    },
-  },
+  }
 ];
