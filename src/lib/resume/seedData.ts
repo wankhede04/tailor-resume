@@ -74,26 +74,26 @@ export const SAMPLE_PROFILES: Resume[] = [
           id: 'exp-fetch',
           bullets: [
             'Contributed as a Node.js and TypeScript expert, building secure and scalable backend services powering blockchain and on-chain application logic.',
-'Designed and developed internal SDKs and modular developer tooling enabling seamless wallet connections, transaction management, event handling, and Web3 interactions.',
-'Integrated and maintained systems using ethers.js, viem, wagmi, and signing workflows compatible with Ethereum and Layer-2 environments including Arbitrum.',
-'Migrated infrastructure to AWS ECS Fargate, increasing performance by 50% and reducing infrastructure cost by 20%, while improving deployment automation.',
-'Shifted high-load APIs to Node.js for performance-critical paths, improving latency by 30% and enabling scalability under growing traffic.',
-'Improved testing culture by implementing TDD pipelines, integration testing frameworks and code quality gates, increasing module reliability by >90% coverage.',
-'Practised open communication, async documentation, and RFC-style technical proposals for architecture and product planning.',
-'Identified opportunities beyond assigned scope, reducing cloud waste, building internal automation tools, and improving overall engineering efficiency.'
+            'Designed and developed internal SDKs and modular developer tooling enabling seamless wallet connections, transaction management, event handling, and Web3 interactions.',
+            'Integrated and maintained systems using ethers.js, viem, wagmi, and signing workflows compatible with Ethereum and Layer-2 environments including Arbitrum.',
+            'Migrated infrastructure to AWS ECS Fargate, increasing performance by 50% and reducing infrastructure cost by 20%, while improving deployment automation.',
+            'Shifted high-load APIs to Node.js for performance-critical paths, improving latency by 30% and enabling scalability under growing traffic.',
+            'Improved testing culture by implementing TDD pipelines, integration testing frameworks and code quality gates, increasing module reliability by >90% coverage.',
+            'Practised open communication, async documentation, and RFC-style technical proposals for architecture and product planning.',
+            'Identified opportunities beyond assigned scope, reducing cloud waste, building internal automation tools, and improving overall engineering efficiency.'
           ],
         },
         {
           id: 'exp-instabit',
           bullets: [
             'Led engineering execution for three blockchain products, overseeing requirements, design, implementation, deployment, and developer enablement.',
-'Designed and shipped API frameworks + SDKs with intuitive, developer-friendly abstractions for blockchain contract interactions and transaction processing.',
-'Built infrastructure for relayer logic, blockchain event indexing, off-chain verification, and secure transaction batching.',
-'Improved operational cost efficiency by 40% through API restructuring and infrastructure optimization.',
-'Created custom blockchain architecture applied across client use cases, improving reliability and smart contract interoperability.',
-'Managed and mentored a team of 5 developers, performing architecture reviews, technical planning, and sprint execution.',
-'Set up and managed AWS + GCP production environments, load balancing, monitoring, and automated deployment pipelines.',  
-'Collaborated across teams to deliver secure systems using best practices in authentication, signing flows, and key management.'
+            'Designed and shipped API frameworks + SDKs with intuitive, developer-friendly abstractions for blockchain contract interactions and transaction processing.',
+            'Built infrastructure for relayer logic, blockchain event indexing, off-chain verification, and secure transaction batching.',
+            'Improved operational cost efficiency by 40% through API restructuring and infrastructure optimization.',
+            'Created custom blockchain architecture applied across client use cases, improving reliability and smart contract interoperability.',
+            'Managed and mentored a team of 5 developers, performing architecture reviews, technical planning, and sprint execution.',
+            'Set up and managed AWS + GCP production environments, load balancing, monitoring, and automated deployment pipelines.',  
+            'Collaborated across teams to deliver secure systems using best practices in authentication, signing flows, and key management.'
           ],
         },
         {
