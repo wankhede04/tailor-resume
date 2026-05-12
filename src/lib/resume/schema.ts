@@ -8,7 +8,7 @@ import { z } from 'zod';
 // helper, which ties input and output types together.
 
 export const LockedContactSchema = z.object({
-  email: z.string().email(),
+  email: z.string(),
   phone: z.string(),
   location: z.string(),
   linkedin: z.string(),

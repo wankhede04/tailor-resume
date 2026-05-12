@@ -10,7 +10,7 @@ export const SAMPLE_PROFILES: Resume[] = [
     locked: {
       name: 'Vijay Wankhede',
       contact: {
-        email: 'vijaywankhede959595@gmail.com ',
+        email: 'vijaywankhede959595@gmail.com',
         phone: '+91 88396 57426',
         location: 'Bengaluru, IN',
         linkedin: 'linkedin.com/in/vijay-wankhede-661765306',
