@@ -26,8 +26,8 @@ CRITICAL RULES:
 3. The candidate's experience IDs map editable bullets to locked job titles/companies. Keep the same ids and roughly the same number of bullets per role (within 1).
 4. Do not invent technologies, certifications, or accomplishments that aren't supported by the existing bullets. You may rephrase, reorder, sharpen verbs, and emphasize JD-relevant aspects of the SAME work.
 5. Keep bullets concise (one line each, ideally under 22 words). Lead with strong verbs. Quantify where the original did.
-6. Skills: the skills field is an array of { category, items[] } objects. Preserve every category label exactly as given. Within each category, reorder and trim items to highlight JD-relevant ones. You may drop irrelevant items but do NOT add new items or invent new categories.
-7. Summary: rewrite in first-third-person (no "I"), 2-3 sentences, focused on JD-relevant strengths the candidate already demonstrates.
+6. Skills: the skills field is an array of { category, items[] } objects. Preserve every category label exactly as given. Within each category, reorder items to bring JD-relevant ones to the front. Preserve all existing items unless one directly contradicts a hard exclusion in the JD. Do NOT add new items or invent new categories.
+7. Summary: write in third-person (no "I"), 3-5 sentences. ENRICH, do not replace. Preserve every keyword, technology, and strength from the original summary. Add or emphasize JD-relevant aspects already evidenced by the candidate's experience. Remove a keyword only if it directly contradicts a hard exclusion stated in the JD (rare). The result must feel like the original summary, extended — not a new summary written from scratch.
 8. Output MUST be a valid editable resume JSON. Use the submit_tailored_resume tool to return your result.
 9. WRITING STYLE — avoid AI writing patterns in every text field:
    - No filler words: "pivotal", "testament", "underscores", "highlights", "showcasing", "fostering", "enduring", "vibrant", "groundbreaking", "seamless", "robust", "leverage", "delve", "tapestry", "landscape" (abstract)
