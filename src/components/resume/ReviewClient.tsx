@@ -85,6 +85,7 @@ function buildEditable(
       description: get(p.description),
       bullets: splitLines(values.get(projBulletsKey(p.id)) ?? ''),
       techStack: afterProjects.get(p.id)?.techStack ?? beforeProjects.get(p.id)?.techStack ?? [],
+      url: afterProjects.get(p.id)?.url ?? beforeProjects.get(p.id)?.url,
     })),
   };
 }

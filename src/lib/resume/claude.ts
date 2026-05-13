@@ -129,7 +129,7 @@ For each role, you receive an \`id\` and a \`bullets[]\` array. Output the same 
 
 ### \`projects[]\`
 
-For each project, you receive \`id\`, \`name\`, \`description\`, \`bullets[]\`, \`techStack[]\`. Output the same \`id\`. You may rewrite the other fields freely, subject to the same rules:
+For each project, you receive \`id\`, \`name\`, \`description\`, \`bullets[]\`, \`techStack[]\`, \`url\`. Output the same \`id\` and \`url\` unchanged. You may rewrite the other fields freely, subject to the same rules:
 
 - **\`name\`** — rarely changed. Only edit if the original name is so domain-specific it actively hurts (e.g., "DeFi Yield Aggregator v2" on a payments-platform application — fine to soften to "Yield Aggregator" but don't fabricate).
 - **\`description\`** — 1-2 sentences. Apply use-case reframing here aggressively if Axis 2 calls for it.
@@ -169,7 +169,7 @@ If a project is entirely off-target and recovery isn't possible, you may drop it
 
 ## Output reminder
 
-Return only the structured JSON the tool expects: a \`summary\` string, a \`skills\` array of strings, an \`experience\` array of \`{ id, bullets }\` with every input \`id\` preserved, and a \`projects\` array of \`{ id, name, description, bullets, techStack }\` with every input \`id\` preserved. Nothing else.`;
+Return only the structured JSON the tool expects: a \`summary\` string, a \`skills\` array of strings, an \`experience\` array of \`{ id, bullets }\` with every input \`id\` preserved, and a \`projects\` array of \`{ id, name, description, bullets, techStack, url }\` with every input \`id\` and \`url\` preserved. Nothing else.`;
 
 const HUMANIZER_SYSTEM_PROMPT = `You are a writing editor that removes AI writing patterns to make text sound natural and human. Apply every rule below, then output ONLY the rewritten text with no commentary.
 
@@ -219,6 +219,7 @@ const TOOL_INPUT_SCHEMA = {
           description: { type: 'string' },
           bullets: { type: 'array', items: { type: 'string' } },
           techStack: { type: 'array', items: { type: 'string' } },
+          url: { type: 'string' },
         },
         required: ['id', 'name', 'description', 'bullets', 'techStack'],
       },
@@ -285,6 +286,13 @@ export async function tailorResume(input: TailorInput): Promise<EditableResume> 
   }
 
   const parsed = EditableSchema.parse(toolUse.input);
+
+  // Claude may omit url (not in its training distribution); restore from input.
+  const urlById = new Map(input.editable.projects.map((p) => [p.id, p.url]));
+  parsed.projects = parsed.projects.map((p) => ({
+    ...p,
+    url: p.url ?? urlById.get(p.id),
+  }));
 
   // Extra invariant: experience ids must match the input set.
   const inputIds = new Set(input.editable.experience.map((e) => e.id));

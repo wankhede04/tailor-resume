@@ -31,7 +31,7 @@ type ExperienceEntry = {
 };
 type ProjectEntry = {
   id: string; name: string; description: string;
-  bullets: string[]; techStack: string;
+  bullets: string[]; techStack: string; url: string;
 };
 type FormState = {
   name: string;
@@ -128,6 +128,7 @@ function parseProj(v: unknown): ProjectEntry {
     techStack: Array.isArray(p.techStack)
       ? (p.techStack as unknown[]).map(str).join(', ')
       : str(p.techStack),
+    url: str(p.url),
   };
 }
 
@@ -307,10 +308,11 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
         experience: form.experience.map(({ id, bullets }) => ({
           id, bullets: bullets.map((b) => b.trim()).filter(Boolean),
         })),
-        projects: form.projects.map(({ id, name, description, bullets, techStack }) => ({
+        projects: form.projects.map(({ id, name, description, bullets, techStack, url }) => ({
           id, name, description,
           bullets: bullets.map((b) => b.trim()).filter(Boolean),
           techStack: techStack.split(',').map((s) => s.trim()).filter(Boolean),
+          url,
         })),
       };
 
@@ -565,7 +567,7 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
             patch({
               projects: [
                 ...form.projects,
-                { id: `proj-${uid()}`, name: '', description: '', bullets: [], techStack: '' },
+                { id: `proj-${uid()}`, name: '', description: '', bullets: [], techStack: '', url: '' },
               ],
             })
           }
@@ -587,6 +589,7 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
                   ['name', 'Name'],
                   ['description', 'Description'],
                   ['techStack', 'Tech Stack'],
+                  ['url', 'GitHub / Website'],
                 ] as [keyof ProjectEntry, string][]
               ).map(([field, label]) => (
                 <Row key={field} label={label}>
@@ -594,7 +597,11 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
                     className="input flex-1 text-xs"
                     value={proj[field] as string}
                     onChange={(e) => updateProj(i, { [field]: e.target.value })}
-                    placeholder={field === 'techStack' ? 'React, TypeScript, …' : label}
+                    placeholder={
+                      field === 'techStack' ? 'React, TypeScript, …' :
+                      field === 'url' ? 'https://github.com/user/repo' :
+                      label
+                    }
                   />
                 </Row>
               ))}

@@ -104,6 +104,12 @@ function buildContactItems(c: LockedResume['contact']): ContactItem[] {
   return items;
 }
 
+function normalizeProjectUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `https://${url}`;
+}
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <Text style={s.sectionTitle}>{(children as string)?.toUpperCase?.() ?? children}</Text>;
 }
@@ -188,7 +194,11 @@ export function TemplateC({ locked, editable }: ResumePdfProps) {
             {editable.projects.map((p) => (
               <View key={p.id} style={s.projectEntry} wrap={false}>
                 <View style={s.projectHeader}>
-                  <Text style={s.projectName}>{p.name}</Text>
+                  {p.url ? (
+                    <Link src={normalizeProjectUrl(p.url)} style={[s.projectName, s.contactLink]}>{p.name}</Link>
+                  ) : (
+                    <Text style={s.projectName}>{p.name}</Text>
+                  )}
                   {p.techStack && p.techStack.length > 0 ? (
                     <Text style={s.projectTech}>{p.techStack.join(', ')}</Text>
                   ) : null}
