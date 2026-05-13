@@ -54,6 +54,7 @@ export const EditableProjectSchema = z.object({
   description: z.string(),
   bullets: z.array(z.string()),
   techStack: z.array(z.string()),
+  url: z.string().optional(),
 });
 
 export const SkillCategorySchema = z.object({

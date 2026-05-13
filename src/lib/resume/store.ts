@@ -196,17 +196,10 @@ export async function updateApplicationTailored(
   return decodeApplication(row);
 }
 
-export async function finalizeApplication(
-  id: string,
-  pdfFilename: string,
-): Promise<ApplicationRecord | null> {
+export async function finalizeApplication(id: string): Promise<ApplicationRecord | null> {
   const row = await prisma.resumeApplication.update({
     where: { id },
-    data: {
-      status: 'finalized',
-      pdfFilename,
-      finalizedAt: new Date(),
-    },
+    data: { status: 'finalized', finalizedAt: new Date() },
   });
   return decodeApplication(row);
 }

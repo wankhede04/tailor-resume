@@ -30,7 +30,6 @@ export async function GET() {
         jobTitle: a.jobTitle,
         company: a.company,
         status: a.status,
-        pdfFilename: a.pdfFilename,
         createdAt: a.createdAt.toISOString(),
         finalizedAt: a.finalizedAt?.toISOString() ?? null,
       })),

@@ -19,6 +19,7 @@ const PatchBody = z.object({
   finalize: z.boolean().optional().default(false),
 });
 
+
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
     const app = await getApplication(params.id);
@@ -33,16 +34,6 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   } catch (err) {
     return fail(err);
   }
-}
-
-function pdfFilenameFor(slug: string, company: string, date: Date): string {
-  const safeCompany = company
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40);
-  const datePart = date.toISOString().slice(0, 10);
-  return `${slug}_${safeCompany || 'company'}_${datePart}.pdf`;
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
@@ -63,10 +54,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     if (body.finalize) {
-      const profile = await getProfile(app.profileId);
-      if (!profile) throw new ApiError(ErrorCodes.NOT_FOUND, 'Profile for application not found');
-      const filename = pdfFilenameFor(profile.slug, app.company, new Date());
-      updated = await finalizeApplication(params.id, filename);
+      updated = await finalizeApplication(params.id) ?? updated;
     }
 
     return ok({ application: updated });

@@ -15,8 +15,6 @@ interface Props {
   profile: { slug: string; locked: LockedResume };
   original: EditableResume;
   tailored: EditableResume;
-  status: 'draft' | 'finalized';
-  pdfFilename: string | null;
   coverLetter: string;
 }
 
@@ -91,6 +89,7 @@ function buildEditable(
       description: get(p.description),
       bullets: splitLines(values.get(projBulletsKey(p.id)) ?? ''),
       techStack: afterProjects.get(p.id)?.techStack ?? beforeProjects.get(p.id)?.techStack ?? [],
+      url: afterProjects.get(p.id)?.url ?? beforeProjects.get(p.id)?.url,
     })),
   };
 }
@@ -237,8 +236,6 @@ export function ReviewClient({
   profile,
   original,
   tailored,
-  status,
-  pdfFilename,
   coverLetter: initialCoverLetter,
 }: Props) {
   const diff = useMemo(() => computeDiff(original, tailored), [original, tailored]);
@@ -341,10 +338,24 @@ export function ReviewClient({
   }
 
   async function onGenerateLatex() {
-    await persist();
-    setLatexCode(generateLatex(latexTemplateId, profile.locked, liveEditable));
-    setShowLatex(true);
-    setCopied(false);
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/resume/applications/${applicationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tailored: liveEditable, coverLetter, finalize: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Save failed');
+      setLatexCode(generateLatex(latexTemplateId, profile.locked, liveEditable));
+      setShowLatex(true);
+      setCopied(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   function onCopyLatex() {
