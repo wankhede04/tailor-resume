@@ -28,7 +28,7 @@ export default async function TailorPage({ params }: { params: { id: string } })
         <p className="mt-1 text-sm text-text-secondary">
           Paste the job description below. Claude will rewrite the editable sections of{' '}
           <span className="text-text-primary">{profile.displayName}</span>&rsquo;s resume to match.
-          You&rsquo;ll review every change in a diff before exporting the PDF.
+          You&rsquo;ll review every change in a diff before exporting the LaTeX source.
         </p>
         <div className="mt-6">
           <TailorForm profileId={profile.id} />

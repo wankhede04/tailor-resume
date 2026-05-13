@@ -59,8 +59,6 @@ export default async function ApplicationReviewPage({
           profile={{ slug: profile.slug, locked: profile.locked }}
           original={application.original}
           tailored={application.tailored}
-          status={application.status}
-          pdfFilename={application.pdfFilename}
           coverLetter={application.coverLetter}
         />
       </div>

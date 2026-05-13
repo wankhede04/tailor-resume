@@ -20,7 +20,7 @@ export default async function ApplicationsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
             <p className="mt-1 text-sm text-text-secondary">
               Every job we tailored a resume for, with the diff snapshot at finalization. Click a
-              row to re-open the diff or re-download the PDF.
+              row to re-open the diff and export LaTeX.
             </p>
           </div>
         </div>
@@ -40,7 +40,6 @@ export default async function ApplicationsPage() {
                   <th className="px-4 py-2">Status</th>
                   <th className="px-4 py-2">Created</th>
                   <th className="px-4 py-2">Finalized</th>
-                  <th className="px-4 py-2">PDF</th>
                 </tr>
               </thead>
               <tbody>
@@ -81,20 +80,6 @@ export default async function ApplicationsPage() {
                     <td className="px-4 py-2 text-xs text-text-muted">{fmtDate(a.createdAt)}</td>
                     <td className="px-4 py-2 text-xs text-text-muted">
                       {fmtDate(a.finalizedAt)}
-                    </td>
-                    <td className="px-4 py-2 text-xs">
-                      {a.status === 'finalized' && a.pdfFilename ? (
-                        <a
-                          className="text-accent hover:text-accent-hover"
-                          href={`/api/v1/resume/applications/${a.id}/pdf`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {a.pdfFilename}
-                        </a>
-                      ) : (
-                        <span className="text-text-muted">—</span>
-                      )}
                     </td>
                   </tr>
                 ))}
