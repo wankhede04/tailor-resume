@@ -348,7 +348,7 @@ export function ReviewClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? 'Save failed');
-      setLatexCode(generateLatex(profile.locked, liveEditable));
+      setLatexCode(generateLatex(latexTemplateId, profile.locked, liveEditable));
       setShowLatex(true);
       setCopied(false);
     } catch (err) {
