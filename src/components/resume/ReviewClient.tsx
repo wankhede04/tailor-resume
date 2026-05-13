@@ -406,16 +406,27 @@ export function ReviewClient({
                 <button type="button" onClick={persist} className="btn btn-secondary" disabled={saving}>
                   {saving ? 'Saving…' : 'Save draft'}
                 </button>
-                <select
-                  value={latexTemplateId}
-                  onChange={(e) => setLatexTemplateId(e.target.value as LatexTemplateId)}
-                  className="rounded border border-bg-border bg-bg-raised px-2 py-1.5 text-xs text-text-secondary focus:border-accent/60 focus:outline-none"
-                  title="LaTeX template"
-                >
-                  {LATEX_TEMPLATE_LIST.map((t) => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1">
+                  <select
+                    value={latexTemplateId}
+                    onChange={(e) => setLatexTemplateId(e.target.value as LatexTemplateId)}
+                    className="rounded border border-bg-border bg-bg-raised px-2 py-1.5 text-xs text-text-secondary focus:border-accent/60 focus:outline-none"
+                    title="LaTeX template"
+                  >
+                    {LATEX_TEMPLATE_LIST.map((t) => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </select>
+                  <a
+                    href="/templates"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded border border-bg-border bg-bg-raised px-2 py-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors"
+                    title="Preview all templates"
+                  >
+                    Preview
+                  </a>
+                </div>
                 <button type="button" onClick={onGenerateLatex} className="btn btn-primary" disabled={saving}>
                   Generate LaTeX
                 </button>

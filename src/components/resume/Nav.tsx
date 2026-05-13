@@ -17,6 +17,9 @@ export function ResumeNav() {
           <Link href="/applications" className="hover:text-text-primary">
             Applications
           </Link>
+          <Link href="/templates" className="hover:text-text-primary">
+            Templates
+          </Link>
         </nav>
       </div>
     </header>
