@@ -57,6 +57,8 @@ const SKILL_CATEGORIES = [
   'Workstyle & Practices',
 ] as const;
 
+const DEFAULT_CATS = new Set<string>(SKILL_CATEGORIES);
+
 const CONTACT_FIELDS: [keyof Contact, string][] = [
   ['email', 'Email'],
   ['phone', 'Phone'],
@@ -173,7 +175,7 @@ function parseSkillsToMap(text: string): Record<string, string> {
   return map;
 }
 
-function splitSkillRows(rows: { cat: string; items: string }[]): SkillCategory[] {
+function splitSkillRows(rows: { id: string; cat: string; items: string }[]): SkillCategory[] {
   return rows
     .filter((r) => r.items.trim())
     .map((r) => ({
@@ -182,21 +184,21 @@ function splitSkillRows(rows: { cat: string; items: string }[]): SkillCategory[]
     }));
 }
 
-function initSkillRows(editable: unknown): { cat: string; items: string }[] {
+function initSkillRows(editable: unknown): { id: string; cat: string; items: string }[] {
   const text = extractSkillsText(editable);
   const map = parseSkillsToMap(text);
   const seen = new Set<string>();
-  const rows: { cat: string; items: string }[] = [];
+  const rows: { id: string; cat: string; items: string }[] = [];
   for (const line of text.split('\n')) {
     const t = line.trim();
     if (!t) continue;
     const idx = t.indexOf(':');
     if (idx === -1) continue;
     const cat = t.slice(0, idx).trim();
-    if (cat && !seen.has(cat)) { rows.push({ cat, items: map[cat] ?? '' }); seen.add(cat); }
+    if (cat && !seen.has(cat)) { rows.push({ id: uid(), cat, items: map[cat] ?? '' }); seen.add(cat); }
   }
   for (const cat of SKILL_CATEGORIES) {
-    if (!seen.has(cat)) rows.push({ cat, items: '' });
+    if (!seen.has(cat)) rows.push({ id: uid(), cat, items: '' });
   }
   return rows;
 }
@@ -269,7 +271,7 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
   const [slug, setSlug] = useState(initial.slug);
   const [displayName, setDisplayName] = useState(initial.displayName);
   const [form, setForm] = useState<FormState>(() => initForm(initial.locked, initial.editable));
-  const [skillRows, setSkillRows] = useState<{ cat: string; items: string }[]>(() => initSkillRows(initial.editable));
+  const [skillRows, setSkillRows] = useState<{ id: string; cat: string; items: string }[]>(() => initSkillRows(initial.editable));
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -553,46 +555,74 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
 
       {/* Skills */}
       <div className="space-y-2">
-        <SectionHeader title="Skills" badge="editable" />
+        <SectionHeader
+          title="Skills"
+          badge="editable"
+          onAdd={() => setSkillRows((rows) => [...rows, { id: uid(), cat: '', items: '' }])}
+        />
         <p className="text-xs text-text-muted">
           Fill in items for each category · format: <code className="text-text-secondary">item1, item2, item3</code>
         </p>
         <div className="space-y-2">
-          {skillRows.map((row, i) => (
-            <div
-              key={row.cat}
-              draggable
-              onDragStart={() => setDragIndex(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragIndex !== null && dragIndex !== i) {
-                  setSkillRows((rows) => {
-                    const next = [...rows];
-                    const [item] = next.splice(dragIndex, 1);
-                    next.splice(i, 0, item);
-                    return next;
-                  });
-                }
-                setDragIndex(null);
-              }}
-              onDragEnd={() => setDragIndex(null)}
-              className={`flex items-center gap-3 transition-opacity${dragIndex === i ? ' opacity-40' : ''}`}
-            >
-              <span className="cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary">
-                <DragHandle />
-              </span>
-              <span className="w-52 shrink-0 text-xs font-medium text-text-secondary">{row.cat}</span>
-              <input
-                className="input flex-1 font-mono text-xs"
-                value={row.items}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSkillRows((rows) => rows.map((r, j) => j === i ? { ...r, items: val } : r));
+          {skillRows.map((row, i) => {
+            const isDefault = DEFAULT_CATS.has(row.cat);
+            return (
+              <div
+                key={row.id}
+                draggable
+                onDragStart={() => setDragIndex(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (dragIndex !== null && dragIndex !== i) {
+                    setSkillRows((rows) => {
+                      const next = [...rows];
+                      const [item] = next.splice(dragIndex, 1);
+                      next.splice(i, 0, item);
+                      return next;
+                    });
+                  }
+                  setDragIndex(null);
                 }}
-                placeholder="item1, item2, item3"
-              />
-            </div>
-          ))}
+                onDragEnd={() => setDragIndex(null)}
+                className={`flex items-center gap-3 transition-opacity${dragIndex === i ? ' opacity-40' : ''}`}
+              >
+                <span className="cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary">
+                  <DragHandle />
+                </span>
+                {isDefault ? (
+                  <span className="w-52 shrink-0 text-xs font-medium text-text-secondary">{row.cat}</span>
+                ) : (
+                  <input
+                    className="input w-52 shrink-0 text-xs font-medium"
+                    value={row.cat}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSkillRows((rows) => rows.map((r, j) => j === i ? { ...r, cat: val } : r));
+                    }}
+                    placeholder="Category name"
+                  />
+                )}
+                <input
+                  className="input flex-1 font-mono text-xs"
+                  value={row.items}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSkillRows((rows) => rows.map((r, j) => j === i ? { ...r, items: val } : r));
+                  }}
+                  placeholder="item1, item2, item3"
+                />
+                {!isDefault && (
+                  <button
+                    type="button"
+                    onClick={() => setSkillRows((rows) => rows.filter((_, j) => j !== i))}
+                    className="text-xs text-red-300 hover:text-red-200 shrink-0"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
