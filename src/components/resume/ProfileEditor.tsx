@@ -173,25 +173,32 @@ function parseSkillsToMap(text: string): Record<string, string> {
   return map;
 }
 
-function buildSkillsText(map: Record<string, string>): string {
-  return SKILL_CATEGORIES
-    .filter((cat) => map[cat]?.trim())
-    .map((cat) => `${cat}: ${map[cat].trim()}`)
-    .join('\n');
+function splitSkillRows(rows: { cat: string; items: string }[]): SkillCategory[] {
+  return rows
+    .filter((r) => r.items.trim())
+    .map((r) => ({
+      category: r.cat,
+      items: r.items.split(',').map((s) => s.trim()).filter(Boolean),
+    }));
 }
 
-function splitSkills(text: string): SkillCategory[] {
-  return text
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      const idx = line.indexOf(':');
-      if (idx === -1) return [];
-      const category = line.slice(0, idx).trim();
-      const items = line.slice(idx + 1).split(',').map((s) => s.trim()).filter(Boolean);
-      return category ? [{ category, items }] : [];
-    });
+function initSkillRows(editable: unknown): { cat: string; items: string }[] {
+  const text = extractSkillsText(editable);
+  const map = parseSkillsToMap(text);
+  const seen = new Set<string>();
+  const rows: { cat: string; items: string }[] = [];
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    const idx = t.indexOf(':');
+    if (idx === -1) continue;
+    const cat = t.slice(0, idx).trim();
+    if (cat && !seen.has(cat)) { rows.push({ cat, items: map[cat] ?? '' }); seen.add(cat); }
+  }
+  for (const cat of SKILL_CATEGORIES) {
+    if (!seen.has(cat)) rows.push({ cat, items: '' });
+  }
+  return rows;
 }
 
 function extractSkillsText(editable: unknown): string {
@@ -212,6 +219,19 @@ function extractSkillsText(editable: unknown): string {
 }
 
 // ---- Shared UI helpers ---------------------------------------------------
+
+function DragHandle() {
+  return (
+    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" className="shrink-0">
+      <circle cx="2.5" cy="2.5" r="1.5" />
+      <circle cx="7.5" cy="2.5" r="1.5" />
+      <circle cx="2.5" cy="7" r="1.5" />
+      <circle cx="7.5" cy="7" r="1.5" />
+      <circle cx="2.5" cy="11.5" r="1.5" />
+      <circle cx="7.5" cy="11.5" r="1.5" />
+    </svg>
+  );
+}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -249,7 +269,8 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
   const [slug, setSlug] = useState(initial.slug);
   const [displayName, setDisplayName] = useState(initial.displayName);
   const [form, setForm] = useState<FormState>(() => initForm(initial.locked, initial.editable));
-  const [skillsText, setSkillsText] = useState(() => extractSkillsText(initial.editable));
+  const [skillRows, setSkillRows] = useState<{ cat: string; items: string }[]>(() => initSkillRows(initial.editable));
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -304,7 +325,7 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
       };
       const editable = {
         summary: form.summary,
-        skills: splitSkills(skillsText),
+        skills: splitSkillRows(skillRows),
         experience: form.experience.map(({ id, bullets }) => ({
           id, bullets: bullets.map((b) => b.trim()).filter(Boolean),
         })),
@@ -537,24 +558,41 @@ export function ProfileEditor({ mode, profileId, initial }: Props) {
           Fill in items for each category · format: <code className="text-text-secondary">item1, item2, item3</code>
         </p>
         <div className="space-y-2">
-          {(() => {
-            const map = parseSkillsToMap(skillsText);
-            return SKILL_CATEGORIES.map((cat) => (
-              <div key={cat} className="flex items-center gap-3">
-                <span className="w-52 shrink-0 text-xs font-medium text-text-secondary">{cat}</span>
-                <input
-                  className="input flex-1 font-mono text-xs"
-                  value={map[cat] ?? ''}
-                  onChange={(e) => {
-                    const updated = parseSkillsToMap(skillsText);
-                    updated[cat] = e.target.value;
-                    setSkillsText(buildSkillsText(updated));
-                  }}
-                  placeholder="item1, item2, item3"
-                />
-              </div>
-            ));
-          })()}
+          {skillRows.map((row, i) => (
+            <div
+              key={row.cat}
+              draggable
+              onDragStart={() => setDragIndex(i)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (dragIndex !== null && dragIndex !== i) {
+                  setSkillRows((rows) => {
+                    const next = [...rows];
+                    const [item] = next.splice(dragIndex, 1);
+                    next.splice(i, 0, item);
+                    return next;
+                  });
+                }
+                setDragIndex(null);
+              }}
+              onDragEnd={() => setDragIndex(null)}
+              className={`flex items-center gap-3 transition-opacity${dragIndex === i ? ' opacity-40' : ''}`}
+            >
+              <span className="cursor-grab active:cursor-grabbing text-text-muted hover:text-text-secondary">
+                <DragHandle />
+              </span>
+              <span className="w-52 shrink-0 text-xs font-medium text-text-secondary">{row.cat}</span>
+              <input
+                className="input flex-1 font-mono text-xs"
+                value={row.items}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSkillRows((rows) => rows.map((r, j) => j === i ? { ...r, items: val } : r));
+                }}
+                placeholder="item1, item2, item3"
+              />
+            </div>
+          ))}
         </div>
       </div>
 
